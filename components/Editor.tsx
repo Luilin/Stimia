@@ -17,7 +17,7 @@ import { SiteManagementModal } from './SiteManagementModal';
 import { ToolbarMenu, ToolbarMenuSection } from './ToolbarMenu';
 import { saveProjectVersion } from '../services/projectVersions';
 import { externalizePriceBooks, hydratePriceBooks } from '../services/priceBooksStorage';
-import { Plus, Save, Users, FileSpreadsheet, ArrowLeft, Trash2, FolderOpen, Printer, Pencil, X, Search, AlertTriangle, AlertCircle, GripVertical, Undo, Redo, PanelLeftClose, PanelLeftOpen, ArrowDownAZ, List, CheckCircle2, Calculator, AlignEndVertical, Ruler, BookOpen, ChevronLeft, Hash, Eye, EyeOff, Shield, ShieldCheck, Building2, ChevronDown, ChevronUp, Scale, FlaskConical, BarChart3, FileText, Wrench, Paperclip, Landmark, Briefcase, Menu as MenuIcon } from 'lucide-react';
+import { Plus, Save, Users, FileSpreadsheet, ArrowLeft, Trash2, FolderOpen, Printer, Pencil, X, Search, AlertTriangle, AlertCircle, GripVertical, Undo, Redo, PanelLeftClose, PanelLeftOpen, ArrowDownAZ, List, CheckCircle2, Calculator, AlignEndVertical, Ruler, BookOpen, ChevronLeft, Hash, Eye, EyeOff, Shield, ShieldCheck, Building2, ChevronDown, ChevronUp, Scale, FlaskConical, BarChart3, FileText, Wrench, Paperclip, Landmark, Briefcase, MoveHorizontal, Menu as MenuIcon } from 'lucide-react';
 import { saveProject } from '../services/storage';
 
 interface EditorProps {
@@ -184,7 +184,12 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
   const [hideCompleted, setHideCompleted] = useState(false); // Hide items completed in prev SALs
 
   // Sidebar State
-  const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches,
+  );
+  const [isSidebarOpen, setSidebarOpen] = useState(
+    () => typeof window === 'undefined' || !window.matchMedia('(max-width: 1023px)').matches,
+  );
   const [sidebarWidth, setSidebarWidth] = useState(() => {
       if (typeof window !== 'undefined') {
           const saved = localStorage.getItem('stimia_editor_sidebar_width');
@@ -270,6 +275,18 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
   const notify = (message: string, type: 'info' | 'warning' | 'error' | 'success' = 'warning') => {
     setToastNotification({ message, type });
   };
+
+  // Adatta il layout quando la finestra passa da desktop a telefono/tablet.
+  useEffect(() => {
+    const media = window.matchMedia('(max-width: 1023px)');
+    const onChange = () => {
+      setIsMobile(media.matches);
+      setSidebarOpen(!media.matches);
+    };
+    onChange();
+    media.addEventListener?.('change', onChange);
+    return () => media.removeEventListener?.('change', onChange);
+  }, []);
 
   useEffect(() => {
     if (!toastNotification) return;
@@ -549,6 +566,8 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
       }
       // Reset Item Selection when changing WBS Node
       setSelectedItemIds(new Set());
+      // Su telefono la WBS è un pannello a scomparsa: si chiude dopo la scelta.
+      if (isMobile && !multi) setSidebarOpen(false);
   };
 
   const filteredItems = selectedNode 
@@ -1743,11 +1762,23 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
       </div>
       
       <div className="relative flex flex-1 overflow-hidden">
-        {/* Sidebar WBS */}
+        {isMobile && isSidebarOpen && (
+          <div
+            className="fixed inset-0 z-[55] bg-slate-900/50 backdrop-blur-sm"
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
+        {/* Sidebar WBS: pannello fisso su desktop, drawer su telefono */}
         <div 
           ref={sidebarContainerRef}
-          className="bg-gray-50 border-r overflow-y-auto flex flex-col no-print relative group transition-[width] duration-300 ease-in-out select-none" 
-          style={{ width: isSidebarOpen ? sidebarWidth : 0, maxWidth: '90vw' }}
+          className={`bg-gray-50 border-r overflow-y-auto flex flex-col no-print group select-none ${
+            isMobile
+              ? `fixed inset-y-0 left-0 z-[60] w-[88vw] max-w-sm shadow-2xl transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}`
+              : 'relative transition-[width] duration-300 ease-in-out'
+          }`}
+          style={isMobile ? undefined : { width: isSidebarOpen ? sidebarWidth : 0, maxWidth: '90vw' }}
           onMouseDown={handleSidebarMouseDown}
           onMouseMove={handleSidebarMouseMove}
           onMouseUp={handleSidebarMouseUp}
@@ -1801,7 +1832,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
         {/* Editor Area */}
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
           {selectedNode ? (
-            <div className="flex-1 flex flex-col p-4 sm:p-6 lg:p-8 overflow-hidden">
+            <div className="flex-1 flex flex-col p-3 sm:p-6 lg:p-8 overflow-hidden">
               <div className="mb-5 pb-5 border-b border-slate-200 shrink-0">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
                   <div className="flex-1">
@@ -1865,8 +1896,11 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
               </div>
               
               {/* Items List Header */}
-              <div className="flex min-h-0 flex-1 flex-col overflow-x-auto">
-              <div className="flex min-h-0 flex-1 min-w-[860px] flex-col sm:min-w-0">
+              <div className="mb-2 flex items-center gap-2 text-[11px] text-slate-400 min-[1400px]:hidden">
+                <MoveHorizontal size={13} /> Scorri lateralmente per vedere tutte le colonne
+              </div>
+              <div className="flex min-h-0 flex-1 flex-col overflow-x-auto overscroll-x-contain">
+              <div className="flex min-h-0 flex-1 min-w-[900px] flex-col min-[1400px]:min-w-0">
                             {/* VOCI TABLE HEADERS */}
               {isDittaMode ? (
                 <div className="grid grid-cols-[30px_60px_2.5fr_40px_50px_90px_60px_90px_1fr_40px] gap-2 p-2.5 pb-2 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider shrink-0 items-center">
@@ -1914,7 +1948,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
               {/* Items List */}
               <div 
                   ref={itemsListRef}
-                  className="flex-1 overflow-y-auto pr-2 pb-20 relative select-none"
+                  className="flex-1 overflow-y-auto pr-2 pb-28 relative select-none lg:pb-20"
                   onMouseDown={handleItemListMouseDown}
                   onMouseMove={handleItemListMouseMove}
                   onMouseUp={handleItemListMouseUp}
@@ -2566,7 +2600,13 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
              <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 px-6 text-center text-slate-400">
                  <FolderOpen size={44} className="mb-4 opacity-50" />
                  <p className="text-base font-semibold text-slate-600">Seleziona una categoria WBS</p>
-                 <p className="text-sm">o creane una nuova dal menu a sinistra</p>
+                 <p className="text-sm">o creane una nuova dal pannello WBS</p>
+                 <button
+                   onClick={() => setSidebarOpen(true)}
+                   className="btn btn-primary mt-4"
+                 >
+                   <PanelLeftOpen size={16} /> Apri struttura WBS
+                 </button>
              </div>
           )}
         </div>
@@ -3066,8 +3106,21 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
         </div>
       )}
 
+      {isMobile && (
+        <div className="no-print fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-slate-200 bg-white/95 px-3 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(15,23,42,0.08)] backdrop-blur lg:hidden">
+          <button onClick={() => setSidebarOpen(true)} className="btn btn-neutral flex-1">
+            <PanelLeftOpen size={16} /> WBS
+          </button>
+          {selectedNode && (
+            <button onClick={handleAddItem} className="btn btn-primary flex-1">
+              <Plus size={16} /> Nuova voce
+            </button>
+          )}
+        </div>
+      )}
+
       {toastNotification && (
-        <div className="fixed bottom-5 right-5 z-[200] max-w-md animate-fade-in shadow-2xl rounded-xl border p-4 bg-white flex items-center gap-3">
+        <div className="fixed bottom-20 left-4 right-4 z-[200] max-w-md animate-fade-in shadow-2xl rounded-xl border p-4 bg-white flex items-center gap-3 sm:bottom-5 sm:left-auto sm:right-5">
           <div className={`p-2 rounded-full shrink-0 ${
             toastNotification.type === 'error' ? 'bg-red-100 text-red-600' :
             toastNotification.type === 'warning' ? 'bg-amber-100 text-amber-600' :

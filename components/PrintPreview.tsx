@@ -143,6 +143,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
     const [printPageNumberFont, setPrintPageNumberFont] = useState("Roboto");
     const [previewPageCount, setPreviewPageCount] = useState(1);
     const [pdfBusy, setPdfBusy] = useState(false);
+    const [mobileSettingsOpen, setMobileSettingsOpen] = useState(false);
     const [pdfError, setPdfError] = useState<string | null>(null);
     const [pdfInfo, setPdfInfo] = useState<string | null>(null);
     const [pdfOpenUrl, setPdfOpenUrl] = useState<string | null>(null);
@@ -956,20 +957,20 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
     return (
         <div className="fixed inset-0 bg-gray-900/90 z-[100] flex flex-col">
               {/* Toolbar */}
-              <div className="h-14 bg-gray-800 text-white flex items-center justify-between px-4 shrink-0 shadow-md">
-                  <div className="flex items-center gap-4">
-                      <h3 className="font-bold flex items-center gap-2"><Printer/> Anteprima di Stampa</h3>
+              <div className="min-h-14 bg-gray-800 text-white flex flex-wrap items-center justify-between gap-2 px-2 py-2 sm:px-4 shrink-0 shadow-md">
+                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
+                      <h3 className="flex items-center gap-2 text-sm font-bold sm:text-base"><Printer size={18}/> Anteprima di Stampa</h3>
                       
-                      <div className="flex items-center gap-2">
-                          <FileText size={15} className="text-slate-400" />
-                          <label htmlFor="print-document" className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
+                      <div className="flex min-w-0 flex-1 items-center gap-2 sm:flex-none">
+                          <FileText size={15} className="hidden text-slate-400 sm:block" />
+                          <label htmlFor="print-document" className="hidden text-[10px] font-bold uppercase tracking-wide text-slate-400 sm:block">
                             Documento
                           </label>
                           <select
                             id="print-document"
                             value={printDocument}
                             onChange={event => handleDocumentChange(event.target.value as PrintDocumentType)}
-                            className="h-8 max-w-[280px] rounded-lg border border-gray-600 bg-gray-700 px-2 text-xs font-semibold text-white outline-none focus:border-emerald-400"
+                            className="h-8 min-w-0 max-w-full flex-1 rounded-lg border border-gray-600 bg-gray-700 px-2 text-xs font-semibold text-white outline-none focus:border-emerald-400 sm:max-w-[280px] sm:flex-none"
                           >
                             {PRINT_DOCUMENT_GROUPS.map(group => (
                               <optgroup key={group.label} label={group.label}>
@@ -980,30 +981,40 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                             ))}
                           </select>
                       </div>
-                      <span className="rounded-full bg-gray-700 px-2.5 py-1 text-[10px] font-bold text-slate-300" title="Stima delle pagine della stampa in formato A4">
+                      <span className="hidden rounded-full bg-gray-700 px-2.5 py-1 text-[10px] font-bold text-slate-300 sm:inline" title="Stima delle pagine della stampa in formato A4">
                           {previewPageCount} {previewPageCount === 1 ? 'pagina' : 'pagine'}
                       </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
+                      <button
+                        onClick={() => setMobileSettingsOpen(open => !open)}
+                        title="Configurazione documento"
+                        aria-label="Configurazione documento"
+                        className="flex items-center gap-2 rounded bg-gray-700 px-3 py-1.5 text-sm font-bold hover:bg-gray-600 lg:hidden"
+                      >
+                          <Settings size={16}/>
+                      </button>
                       <button
                         onClick={handlePrintClick}
                         title="Stampa tramite il dialogo del browser"
-                        className="bg-gray-700 hover:bg-gray-600 px-3 py-1.5 rounded text-sm font-bold flex items-center gap-2"
+                        aria-label="Stampa"
+                        className="flex items-center gap-2 rounded bg-gray-700 px-3 py-1.5 text-sm font-bold hover:bg-gray-600"
                       >
                           <Printer size={16}/>
-                          Stampa
+                          <span className="hidden sm:inline">Stampa</span>
                       </button>
                       <button
                         onClick={() => handleVectorPdf()}
                         disabled={pdfBusy}
                         title="Genera un PDF vettoriale nativo, indipendente dal dialogo di stampa"
-                        className="bg-red-600 hover:bg-red-500 disabled:opacity-60 px-4 py-1.5 rounded text-sm font-bold flex items-center gap-2"
+                        aria-label="Scarica PDF"
+                        className="flex items-center gap-2 rounded bg-red-600 px-3 py-1.5 text-sm font-bold hover:bg-red-500 disabled:opacity-60 sm:px-4"
                       >
                           <FileText size={16}/>
-                          {pdfBusy ? 'Generazione…' : 'Scarica PDF'}
+                          <span className="hidden sm:inline">{pdfBusy ? 'Generazione…' : 'Scarica PDF'}</span>
                       </button>
-                      <button onClick={onClose} className="bg-gray-700 hover:bg-gray-600 px-4 py-1.5 rounded text-sm"><X size={18}/></button>
+                      <button onClick={onClose} className="rounded bg-gray-700 px-3 py-1.5 text-sm hover:bg-gray-600" aria-label="Chiudi anteprima"><X size={18}/></button>
                   </div>
               </div>
 
@@ -1032,10 +1043,19 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                   </div>
               )}
 
-              <div className="flex-1 flex overflow-hidden">
+              <div className="flex flex-1 flex-col overflow-hidden lg:flex-row">
                   {/* Print Settings Sidebar (Left) */}
-                  <div className="w-80 bg-white border-r overflow-y-auto p-6 text-sm text-gray-800 no-print shadow-xl z-20">
-                      <h4 className="font-bold text-gray-500 uppercase mb-4 text-xs tracking-wider flex items-center gap-2"><Settings size={14}/> Configurazione Documento</h4>
+                  <div className={`${mobileSettingsOpen ? 'block' : 'hidden'} max-h-[42dvh] w-full shrink-0 overflow-y-auto border-b bg-white p-3 text-sm text-gray-800 no-print shadow-xl sm:p-4 lg:block lg:max-h-none lg:w-80 lg:border-b-0 lg:border-r lg:p-6 z-20`}>
+                      <h4 className="font-bold text-gray-500 uppercase mb-4 text-xs tracking-wider flex items-center gap-2">
+                        <Settings size={14}/> Configurazione Documento
+                        <button
+                          onClick={() => setMobileSettingsOpen(false)}
+                          className="ml-auto rounded p-1 text-gray-500 hover:bg-gray-100 lg:hidden"
+                          aria-label="Chiudi configurazione"
+                        >
+                          <X size={16} />
+                        </button>
+                      </h4>
                       
                       <div className="space-y-4 mb-6">
                           <div>
@@ -1265,7 +1285,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                   </div>
 
                   {/* Preview Canvas (Center) */}
-                  <div className="flex-1 bg-gray-200 overflow-y-auto p-4 sm:p-8">
+                  <div className="min-h-0 flex-1 overflow-auto bg-gray-200 p-2 sm:p-4 lg:p-8">
                       <div className="no-print flex w-full flex-col items-center">
                           {pdfPagesLoading && (
                               <div className="mb-4 flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-600 shadow-sm">
@@ -1516,7 +1536,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
 
                   {/* Right Sidebar - Selection */}
                   {isStandardDocument && (
-                  <div className="w-80 bg-white border-l overflow-y-auto p-6 text-sm text-gray-800 no-print shadow-xl z-20 flex flex-col">
+                  <div className="hidden w-80 shrink-0 flex-col overflow-y-auto border-l bg-white p-6 text-sm text-gray-800 no-print shadow-xl z-20 lg:flex">
                       
                       {printMode === 'SAL' && (
                           <div className="mb-6 pb-6 border-b border-gray-100">

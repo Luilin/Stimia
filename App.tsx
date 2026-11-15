@@ -824,14 +824,14 @@ export default function App() {
                 </button>
               )}
               <span className="hidden max-w-[220px] truncate text-xs text-slate-500 md:inline">Utente: <b className="text-slate-700">{currentUser?.email}</b></span>
-              <button onClick={handleExportBackup} className="btn btn-neutral" title="Esporta un backup JSON di tutti i computi">
+              <button onClick={handleExportBackup} className="btn btn-neutral" title="Esporta un backup JSON di tutti i computi" aria-label="Esporta backup">
                 <Download size={16} /> <span className="hidden sm:inline">Backup</span>
               </button>
-              <button onClick={() => backupInputRef.current?.click()} className="btn btn-neutral" title="Ripristina i computi da un backup JSON">
+              <button onClick={() => backupInputRef.current?.click()} className="btn btn-neutral" title="Ripristina i computi da un backup JSON" aria-label="Ripristina da backup">
                 <Upload size={16} /> <span className="hidden sm:inline">Ripristina</span>
               </button>
               <input ref={backupInputRef} type="file" accept=".json,application/json" className="hidden" onChange={handleImportBackup} />
-              <button onClick={() => setShowAccountModal(true)} className="btn btn-neutral" title="Account, password e sicurezza">
+              <button onClick={() => setShowAccountModal(true)} className="btn btn-neutral" title="Account, password e sicurezza" aria-label="Account">
                 <UserRound size={16} /> <span className="hidden sm:inline">Account</span>
               </button>
               <button onClick={handleLogout} className="btn btn-neutral">Esci</button>

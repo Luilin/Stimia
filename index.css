@@ -11,6 +11,28 @@
 
   body {
     @apply antialiased text-slate-800 bg-slate-100;
+    overscroll-behavior: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input,
+  textarea,
+  select,
+  button {
+    font-family: inherit;
+  }
+
+  /* Su iOS un input con font < 16px fa zoom automatico quando riceve focus. */
+  @media (max-width: 767px) {
+    input,
+    textarea,
+    select {
+      font-size: 16px;
+    }
+
+    .btn {
+      min-height: 2.5rem;
+    }
   }
 
   * {
@@ -82,5 +104,19 @@
 @media print {
   .no-print {
     display: none !important;
+  }
+}
+
+/* Regole non "layered": vincono sulle utility Tailwind e valgono solo su telefono.
+   Servono a evitare lo zoom automatico di iOS e ad avere aree toccabili più grandi. */
+@media (max-width: 767px) {
+  input:not([type='checkbox']):not([type='radio']):not([type='range']),
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  .btn {
+    min-height: 2.5rem;
   }
 }
