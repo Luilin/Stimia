@@ -90,6 +90,8 @@ e progetti, con IndexedDB come cache offline e coda di sincronizzazione.
 Guida completa, schema SQL e configurazione GitHub Pages:
 **[SUPABASE.md](./SUPABASE.md)** — lo schema è in
 [`supabase/schema.sql`](supabase/schema.sql).
+Per attivare il pulsante **Accedi con Google** serve la configurazione OAuth
+descritta in **[GOOGLE_LOGIN.md](./GOOGLE_LOGIN.md)**.
 
 ---
 

@@ -30,6 +30,7 @@ servizio esterno raggiunto via HTTPS, protetto da login e Row Level Security.
 4. Per il login con Google: **Authentication → Providers → Google**, inserisci
    Client ID e Secret del progetto Google Cloud e aggiungi tra i redirect
    `https://<tuo-progetto>.supabase.co/auth/v1/callback`.
+   Procedura dettagliata: **[GOOGLE_LOGIN.md](./GOOGLE_LOGIN.md)**.
 5. Copia **Project URL** e **anon public key** da **Project Settings → API**.
 
 ## In locale

@@ -253,10 +253,15 @@ export async function signInWithEmail(
 export async function signInWithGoogle(): Promise<AuthUser> {
   if (SUPABASE_MODE) {
     if (!supabase) throw new Error('Supabase non configurato.');
-    const redirectTo = typeof window !== 'undefined' ? window.location.origin + window.location.pathname : undefined;
+    // Torna alla base dell'app (es. /Stimia/), non al percorso corrente.
+    const base = (import.meta as any).env?.BASE_URL || '/';
+    const redirectTo = typeof window !== 'undefined' ? window.location.origin + base : undefined;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo },
+      options: {
+        redirectTo,
+        queryParams: { prompt: 'select_account' },
+      },
     });
     if (error) throw new Error(error.message);
     // Il browser viene reindirizzato a Google: la sessione arriva al ritorno.
