@@ -114,10 +114,9 @@ create policy stimia_files_select on storage.objects
   for select to authenticated
   using (
     bucket_id = 'stimia-files'
-    and exists (
-      select 1 from public.projects p
-      where p.id = (storage.foldername(name))[1]
-        and (p.owner_id = auth.uid() or public.is_project_member(p.id))
+    and (storage.foldername(name))[1] in (
+      select p.id from public.projects p
+      where p.owner_id = auth.uid() or public.is_project_member(p.id)
     )
   );
 
@@ -126,10 +125,9 @@ create policy stimia_files_insert on storage.objects
   for insert to authenticated
   with check (
     bucket_id = 'stimia-files'
-    and exists (
-      select 1 from public.projects p
-      where p.id = (storage.foldername(name))[1]
-        and (p.owner_id = auth.uid() or public.is_project_editor(p.id))
+    and (storage.foldername(name))[1] in (
+      select p.id from public.projects p
+      where p.owner_id = auth.uid() or public.is_project_editor(p.id)
     )
   );
 
@@ -138,18 +136,16 @@ create policy stimia_files_update on storage.objects
   for update to authenticated
   using (
     bucket_id = 'stimia-files'
-    and exists (
-      select 1 from public.projects p
-      where p.id = (storage.foldername(name))[1]
-        and (p.owner_id = auth.uid() or public.is_project_editor(p.id))
+    and (storage.foldername(name))[1] in (
+      select p.id from public.projects p
+      where p.owner_id = auth.uid() or public.is_project_editor(p.id)
     )
   )
   with check (
     bucket_id = 'stimia-files'
-    and exists (
-      select 1 from public.projects p
-      where p.id = (storage.foldername(name))[1]
-        and (p.owner_id = auth.uid() or public.is_project_editor(p.id))
+    and (storage.foldername(name))[1] in (
+      select p.id from public.projects p
+      where p.owner_id = auth.uid() or public.is_project_editor(p.id)
     )
   );
 
@@ -158,10 +154,9 @@ create policy stimia_files_delete on storage.objects
   for delete to authenticated
   using (
     bucket_id = 'stimia-files'
-    and exists (
-      select 1 from public.projects p
-      where p.id = (storage.foldername(name))[1]
-        and (p.owner_id = auth.uid() or public.is_project_editor(p.id))
+    and (storage.foldername(name))[1] in (
+      select p.id from public.projects p
+      where p.owner_id = auth.uid() or public.is_project_editor(p.id)
     )
   );
 
