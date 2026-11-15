@@ -39,6 +39,9 @@ export function isGoogleAuthAvailable(): Promise<boolean> {
 
   googleProviderPromise ??= fetch(`${SUPABASE_URL}/auth/v1/settings`, {
     headers: { apikey: SUPABASE_ANON_KEY },
+    // La configurazione dei provider può cambiare: niente cache HTTP, altrimenti
+    // il pulsante Google resterebbe nascosto dopo l'attivazione.
+    cache: 'no-store',
   })
     .then((response) => (response.ok ? response.json() : null))
     .then((settings: { external?: { google?: boolean } } | null) => Boolean(settings?.external?.google))
