@@ -37,15 +37,27 @@ let googleProviderPromise: Promise<boolean> | null = null;
 export function isGoogleAuthAvailable(): Promise<boolean> {
   if (!SUPABASE_MODE) return Promise.resolve(false);
 
-  googleProviderPromise ??= fetch(`${SUPABASE_URL}/auth/v1/settings`, {
-    headers: { apikey: SUPABASE_ANON_KEY },
-    // La configurazione dei provider può cambiare: niente cache HTTP, altrimenti
-    // il pulsante Google resterebbe nascosto dopo l'attivazione.
-    cache: 'no-store',
-  })
-    .then((response) => (response.ok ? response.json() : null))
-    .then((settings: { external?: { google?: boolean } } | null) => Boolean(settings?.external?.google))
-    .catch(() => false);
+  googleProviderPromise ??= (async () => {
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        // Query di cache-busting: alcuni browser riusano la risposta precedente
+        // anche con cache: 'no-store', nascondendo il pulsante dopo l'attivazione.
+        const response = await fetch(
+          `${SUPABASE_URL}/auth/v1/settings?t=${Date.now()}-${attempt}`,
+          {
+            headers: { apikey: SUPABASE_ANON_KEY },
+            cache: 'no-store',
+          },
+        );
+        if (!response.ok) return false;
+        const settings = (await response.json()) as { external?: { google?: boolean } };
+        return Boolean(settings.external?.google);
+      } catch {
+        // Errore di rete transitorio: riprova una volta.
+      }
+    }
+    return false;
+  })();
 
   return googleProviderPromise;
 }
