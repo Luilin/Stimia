@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Project, ViewState, EffectivePermissions, FULL_PERMISSIONS, MemberPermission } from './types';
-import { Editor } from './components/Editor';
+import { AccountModal } from './components/AccountModal';
 import { TeamManagementModal } from './components/TeamManagementModal';
 import { getProjects, saveProject, deleteProject } from './services/storage';
 import { deleteProjectAttachments } from './services/attachments';
@@ -12,11 +12,15 @@ import {
   externalizePriceBooks,
   hydratePriceBooks,
 } from './services/priceBooksStorage';
-import { Users, LogIn, Plus, Trash2, FolderOpen, X, Loader2, AlertCircle, HardDrive, Pencil, Download, Upload, Copy, WifiOff, Smartphone, Cloud } from 'lucide-react';
-import { AuthUser, onAuthStateChanged, signInWithEmail, signInWithGoogle, signOut } from './services/auth';
+import { Users, LogIn, Plus, Trash2, FolderOpen, X, Loader2, AlertCircle, HardDrive, Pencil, Download, Upload, Copy, WifiOff, Smartphone, Cloud, UserRound, Search } from 'lucide-react';
+import { AuthUser, onAuthStateChanged, signInWithEmail, signInWithGoogle, signOut, isPasswordRecoveryRedirect, onPasswordRecovery, sendPasswordReset, updatePassword } from './services/auth';
 import { LOCAL_MODE, SUPABASE_MODE } from './services/mode';
 import { flushSyncQueue } from './services/supabaseProjects';
 import { isGoogleAuthAvailable } from './services/supabase';
+
+// L'editor è il pezzo più pesante: lo carichiamo solo quando serve, con
+// prefetch in background per mantenere l'uso offline.
+const Editor = React.lazy(() => import('./components/Editor').then(module => ({ default: module.Editor })));
 
 async function testConnection() {
   if (LOCAL_MODE || SUPABASE_MODE) return;
@@ -87,6 +91,25 @@ export default function App() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
 
+  // Recupero password (link via email) e gestione account.
+  const [passwordRecovery, setPasswordRecovery] = useState(
+    () => !LOCAL_MODE && isPasswordRecoveryRedirect(),
+  );
+  const [resetPasswordValue, setResetPasswordValue] = useState('');
+  const [resetPasswordConfirm, setResetPasswordConfirm] = useState('');
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resetDone, setResetDone] = useState(false);
+  const [resetBusy, setResetBusy] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotBusy, setForgotBusy] = useState(false);
+  const [forgotError, setForgotError] = useState<string | null>(null);
+  const [showAccountModal, setShowAccountModal] = useState(false);
+
+  // Ricerca e ordinamento dei computi in dashboard.
+  const [projectQuery, setProjectQuery] = useState('');
+  const [projectSort, setProjectSort] = useState<'recent' | 'name'>('recent');
+
   // In modalità Supabase il login Google compare solo se il provider è attivo.
   const [googleAuthAvailable, setGoogleAuthAvailable] = useState(!SUPABASE_MODE);
 
@@ -98,6 +121,27 @@ export default function App() {
     });
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => onPasswordRecovery(() => setPasswordRecovery(true)), []);
+
+  // Precarica l'editor quando il browser è inattivo, così resta disponibile offline.
+  useEffect(() => {
+    let cancelled = false;
+    const prefetch = () => {
+      if (!cancelled) import('./components/Editor').catch(() => undefined);
+    };
+    const idle = (window as any).requestIdleCallback as
+      | ((callback: () => void, options?: { timeout: number }) => number)
+      | undefined;
+    const cancelIdle = (window as any).cancelIdleCallback as ((handle: number) => void) | undefined;
+
+    const handle = idle ? idle(prefetch, { timeout: 5000 }) : window.setTimeout(prefetch, 3000);
+    return () => {
+      cancelled = true;
+      if (idle && cancelIdle) cancelIdle(handle);
+      else window.clearTimeout(handle);
     };
   }, []);
 
@@ -224,6 +268,44 @@ export default function App() {
       setAuthError((isRegistering ? 'Errore durante la registrazione: ' : 'Errore durante il login: ') + (error.message || 'Errore sconosciuto'));
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setForgotError(null);
+    setForgotBusy(true);
+    try {
+      await sendPasswordReset(email);
+      setForgotSent(true);
+    } catch (error: any) {
+      setForgotError(error?.message || 'Invio del link non riuscito.');
+    } finally {
+      setForgotBusy(false);
+    }
+  };
+
+  const handleResetPassword = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setResetMessage(null);
+    if (resetPasswordValue.length < 6) {
+      setResetMessage('La password deve avere almeno 6 caratteri.');
+      return;
+    }
+    if (resetPasswordValue !== resetPasswordConfirm) {
+      setResetMessage('Le due password non coincidono.');
+      return;
+    }
+    setResetBusy(true);
+    try {
+      await updatePassword(resetPasswordValue);
+      setResetDone(true);
+      setResetPasswordValue('');
+      setResetPasswordConfirm('');
+    } catch (error: any) {
+      setResetMessage(error?.message || 'Impossibile aggiornare la password. Il link potrebbe essere scaduto.');
+    } finally {
+      setResetBusy(false);
     }
   };
 
@@ -411,6 +493,89 @@ export default function App() {
     }
   };
 
+  const visibleProjects = projects
+    .filter(project => {
+      const query = projectQuery.trim().toLowerCase();
+      if (!query) return true;
+      return `${project.name} ${project.description || ''}`.toLowerCase().includes(query);
+    })
+    .sort((a, b) => {
+      if (projectSort === 'name') return a.name.localeCompare(b.name, 'it');
+      return (b.lastModified || 0) - (a.lastModified || 0);
+    });
+
+  if (passwordRecovery) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-emerald-50 p-4 sm:p-6">
+        <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
+          <div className="mb-6 flex items-center gap-3">
+            <img
+              src={`${import.meta.env.BASE_URL}brand/stimia-badge.png`}
+              alt="Stimia"
+              className="h-12 w-12 shrink-0 rounded-xl shadow-sm"
+            />
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold tracking-tight text-slate-900">Nuova password</h1>
+              <p className="text-xs text-slate-500">Imposta una password per il tuo account</p>
+            </div>
+          </div>
+
+          {resetDone ? (
+            <>
+              <div className="mb-5 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-800">
+                Password aggiornata. Ora puoi usare l’app.
+              </div>
+              <button onClick={() => setPasswordRecovery(false)} className="btn btn-primary h-11 w-full">
+                Vai all’app
+              </button>
+            </>
+          ) : (
+            <form onSubmit={handleResetPassword} className="space-y-4">
+              {resetMessage && (
+                <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-xs text-red-700">{resetMessage}</div>
+              )}
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">Nuova password</label>
+                <input
+                  type="password"
+                  value={resetPasswordValue}
+                  onChange={event => setResetPasswordValue(event.target.value)}
+                  className="field"
+                  autoComplete="new-password"
+                  minLength={6}
+                  required
+                />
+              </div>
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-slate-700">Ripeti la password</label>
+                <input
+                  type="password"
+                  value={resetPasswordConfirm}
+                  onChange={event => setResetPasswordConfirm(event.target.value)}
+                  className="field"
+                  autoComplete="new-password"
+                  minLength={6}
+                  required
+                />
+              </div>
+              <button type="submit" disabled={resetBusy} className="btn btn-primary h-11 w-full text-sm">
+                {resetBusy ? <Loader2 className="animate-spin" size={18} /> : <LogIn size={18} />}
+                Salva password
+              </button>
+              <button
+                type="button"
+                onClick={() => setPasswordRecovery(false)}
+                className="w-full text-center text-xs font-semibold text-slate-500 hover:text-slate-700 hover:underline"
+              >
+                Annulla
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   if (authLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-100">
@@ -472,7 +637,18 @@ export default function App() {
               />
             </div>
             <div>
-              <label className="mb-1.5 block text-xs font-semibold text-slate-700">Password</label>
+              <div className="mb-1.5 flex items-center justify-between">
+                <label className="block text-xs font-semibold text-slate-700">Password</label>
+                {!isRegistering && !(LOCAL_MODE && !SUPABASE_MODE) && (
+                  <button
+                    type="button"
+                    onClick={() => { setShowForgotModal(true); setForgotSent(false); setForgotError(null); setAuthError(null); }}
+                    className="text-[11px] font-semibold text-emerald-700 hover:underline"
+                  >
+                    Password dimenticata?
+                  </button>
+                )}
+              </div>
               <input 
                 type="password" 
                 value={password}
@@ -528,6 +704,68 @@ export default function App() {
             </>
           )}
         </div>
+
+        {showForgotModal && (
+          <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+            <div className="w-full max-w-md overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl">
+              <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
+                <h3 className="text-base font-bold text-slate-900">Recupera password</h3>
+                <button
+                  type="button"
+                  onClick={() => setShowForgotModal(false)}
+                  className="btn btn-ghost btn-icon"
+                  aria-label="Chiudi"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <div className="p-4 sm:p-5">
+                {forgotSent ? (
+                  <>
+                    <p className="mb-4 text-sm text-slate-600">
+                      Se l’indirizzo <b>{email}</b> è registrato, riceverai un’email con il link per
+                      impostare una nuova password. Controlla anche lo spam.
+                    </p>
+                    <button onClick={() => setShowForgotModal(false)} className="btn btn-primary w-full">
+                      Chiudi
+                    </button>
+                  </>
+                ) : (
+                  <form onSubmit={handleForgotPassword} className="space-y-4">
+                    <p className="text-sm text-slate-500">
+                      Inserisci la tua email: ti invieremo un link per reimpostare la password.
+                    </p>
+                    {forgotError && (
+                      <div className="rounded-lg border border-red-200 bg-red-50 p-2.5 text-xs text-red-700">
+                        {forgotError}
+                      </div>
+                    )}
+                    <div>
+                      <label className="mb-1.5 block text-xs font-semibold text-slate-700">Email</label>
+                      <input
+                        type="email"
+                        value={email}
+                        onChange={event => setEmail(event.target.value)}
+                        className="field"
+                        placeholder="nome@email.it"
+                        required
+                      />
+                    </div>
+                    <div className="flex justify-end gap-2">
+                      <button type="button" onClick={() => setShowForgotModal(false)} className="btn btn-neutral">
+                        Annulla
+                      </button>
+                      <button type="submit" disabled={forgotBusy} className="btn btn-primary">
+                        {forgotBusy ? <Loader2 className="animate-spin" size={16} /> : <LogIn size={16} />}
+                        Invia link
+                      </button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     );
   }
@@ -588,6 +826,9 @@ export default function App() {
                 <Upload size={16} /> <span className="hidden sm:inline">Ripristina</span>
               </button>
               <input ref={backupInputRef} type="file" accept=".json,application/json" className="hidden" onChange={handleImportBackup} />
+              <button onClick={() => setShowAccountModal(true)} className="btn btn-neutral" title="Account, password e sicurezza">
+                <UserRound size={16} /> <span className="hidden sm:inline">Account</span>
+              </button>
               <button onClick={handleLogout} className="btn btn-neutral">Esci</button>
             </div>
           </div>
@@ -606,8 +847,33 @@ export default function App() {
             <>
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">Progetti</h2>
-                <span className="text-xs text-slate-400">{projects.length} {projects.length === 1 ? 'computo' : 'computi'}</span>
+                <span className="text-xs text-slate-400">
+                  {visibleProjects.length}{projectQuery.trim() ? ` di ${projects.length}` : ''} {projects.length === 1 ? 'computo' : 'computi'}
+                </span>
               </div>
+
+              <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center">
+                <div className="relative flex-1">
+                  <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                  <input
+                    value={projectQuery}
+                    onChange={event => setProjectQuery(event.target.value)}
+                    className="field pl-9"
+                    placeholder="Cerca per nome o descrizione…"
+                    aria-label="Cerca computi"
+                  />
+                </div>
+                <select
+                  value={projectSort}
+                  onChange={event => setProjectSort(event.target.value as 'recent' | 'name')}
+                  className="field sm:w-52"
+                  aria-label="Ordina computi"
+                >
+                  <option value="recent">Più recenti</option>
+                  <option value="name">Nome A–Z</option>
+                </select>
+              </div>
+
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                 <button 
                   onClick={() => setShowNewProjectModal(true)}
@@ -620,7 +886,7 @@ export default function App() {
                   <span className="mt-1 text-xs text-slate-400">Crea un nuovo progetto</span>
                 </button>
 
-                {projects.map(p => {
+                {visibleProjects.map(p => {
                   const isOwner = p.userId === currentUser?.uid;
                   const cardPerms = permissionsForProject(p, currentUser || { uid: '', email: '' });
                   const canEditProject = isOwner || cardPerms.canWrite;
@@ -764,6 +1030,18 @@ export default function App() {
             onClose={() => setShareProject(null)} 
           />
         )}
+
+        {showAccountModal && (
+          <AccountModal
+            email={currentUser?.email || ''}
+            onClose={() => setShowAccountModal(false)}
+            onSignedOut={() => {
+              setShowAccountModal(false);
+              setViewState(ViewState.LOGIN);
+              setCurrentUser(null);
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -782,14 +1060,22 @@ export default function App() {
       : (userRoleInCollab || 'viewer');
 
     return (
-      <Editor 
-        project={selectedProject} 
-        currentUser={currentUser?.email || ''} 
-        onClose={() => setViewState(ViewState.DASHBOARD)} 
-        isReadOnly={isReadOnly}
-        userRole={activeUserRole}
-        permissions={perms}
-      />
+      <React.Suspense
+        fallback={
+          <div className="flex h-screen items-center justify-center bg-slate-100">
+            <Loader2 className="animate-spin text-emerald-600" size={40} />
+          </div>
+        }
+      >
+        <Editor 
+          project={selectedProject} 
+          currentUser={currentUser?.email || ''} 
+          onClose={() => setViewState(ViewState.DASHBOARD)} 
+          isReadOnly={isReadOnly}
+          userRole={activeUserRole}
+          permissions={perms}
+        />
+      </React.Suspense>
     );
   }
 

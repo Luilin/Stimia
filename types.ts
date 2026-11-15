@@ -109,6 +109,8 @@ export interface PriceBook {
   /** Prezzario di grandi dimensioni salvato in IndexedDB invece che nel progetto. */
   external?: boolean;
   itemCount?: number;
+  /** Percorso nello Storage Supabase, per sincronizzare il prezzario tra dispositivi. */
+  cloudPath?: string;
 }
 
 export interface WBSNode {

@@ -18,6 +18,21 @@ type AuthListener = (user: AuthUser | null) => void;
 
 const SESSION_KEY = 'stimia_local_session';
 
+/**
+ * Supabase reindirizza qui dopo il link di recupero password con
+ * `#...&type=recovery`. Va letto prima che il client rimuova l'hash.
+ */
+const passwordRecoveryRedirect =
+  typeof window !== 'undefined' && /(?:^|[#&])type=recovery(?:$|[&])/.test(window.location.hash);
+
+export const isPasswordRecoveryRedirect = (): boolean => passwordRecoveryRedirect;
+
+function appRedirectUrl(): string | undefined {
+  if (typeof window === 'undefined') return undefined;
+  const base = (import.meta as any).env?.BASE_URL || '/';
+  return window.location.origin + base;
+}
+
 const localListeners = new Set<AuthListener>();
 
 /** Utente Supabase correntemente autenticato (aggiornato dagli eventi auth). */
@@ -253,13 +268,10 @@ export async function signInWithEmail(
 export async function signInWithGoogle(): Promise<AuthUser> {
   if (SUPABASE_MODE) {
     if (!supabase) throw new Error('Supabase non configurato.');
-    // Torna alla base dell'app (es. /Stimia/), non al percorso corrente.
-    const base = (import.meta as any).env?.BASE_URL || '/';
-    const redirectTo = typeof window !== 'undefined' ? window.location.origin + base : undefined;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: {
-        redirectTo,
+        redirectTo: appRedirectUrl(),
         queryParams: { prompt: 'select_account' },
       },
     });
@@ -301,5 +313,112 @@ export async function signOut(): Promise<void> {
   }
   const fb = await loadFirebaseServices();
   await fb.signOut(fb.auth);
+}
+
+export async function sendPasswordReset(email: string): Promise<void> {
+  const normalized = normalizeEmail(email);
+  if (!normalized) throw new Error('Inserisci la tua email.');
+
+  if (SUPABASE_MODE) {
+    if (!supabase) throw new Error('Supabase non configurato.');
+    const { error } = await supabase.auth.resetPasswordForEmail(normalized, {
+      redirectTo: appRedirectUrl(),
+    });
+    if (error) throw new Error(error.message);
+    return;
+  }
+
+  if (LOCAL_MODE) {
+    throw new Error('In modalità locale non serve recuperare la password: puoi entrare con una email qualsiasi.');
+  }
+
+  const fb = await loadFirebaseServices();
+  await fb.sendPasswordResetEmail(fb.auth, normalized);
+}
+
+export async function updatePassword(password: string): Promise<void> {
+  if (password.length < 6) {
+    throw new Error('La password deve avere almeno 6 caratteri.');
+  }
+
+  if (SUPABASE_MODE) {
+    if (!supabase) throw new Error('Supabase non configurato.');
+    const { error } = await supabase.auth.updateUser({ password });
+    if (error) throw new Error(error.message);
+    return;
+  }
+
+  if (LOCAL_MODE) {
+    throw new Error('La password è simulata in modalità locale.');
+  }
+
+  const fb = await loadFirebaseServices();
+  if (!fb.auth.currentUser) throw new Error('Sessione non valida.');
+  await fb.updatePassword(fb.auth.currentUser, password);
+}
+
+export async function resendConfirmation(email: string): Promise<void> {
+  const normalized = normalizeEmail(email);
+
+  if (SUPABASE_MODE) {
+    if (!supabase) throw new Error('Supabase non configurato.');
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: normalized,
+      options: { emailRedirectTo: appRedirectUrl() },
+    });
+    if (error) throw new Error(error.message);
+    return;
+  }
+
+  if (LOCAL_MODE) {
+    throw new Error('Non serve in modalità locale.');
+  }
+
+  const fb = await loadFirebaseServices();
+  if (!fb.auth.currentUser) throw new Error('Accedi prima per reinviare la conferma.');
+  await fb.sendEmailVerification(fb.auth.currentUser);
+}
+
+export async function signOutEverywhere(): Promise<void> {
+  if (SUPABASE_MODE) {
+    if (supabase) await supabase.auth.signOut({ scope: 'global' });
+    cloudUser = null;
+    emitLocal(null);
+    return;
+  }
+
+  await signOut();
+}
+
+export async function deleteAccount(): Promise<void> {
+  if (SUPABASE_MODE) {
+    if (!supabase) throw new Error('Supabase non configurato.');
+    const { error } = await supabase.rpc('delete_own_account');
+    if (error) throw new Error(error.message);
+    await supabase.auth.signOut();
+    cloudUser = null;
+    emitLocal(null);
+    return;
+  }
+
+  if (LOCAL_MODE) {
+    throw new Error('Eliminazione account non disponibile in modalità locale.');
+  }
+
+  const fb = await loadFirebaseServices();
+  const user = fb.auth.currentUser;
+  if (!user) throw new Error('Sessione non valida.');
+  await fb.deleteUser(user);
+}
+
+export function onPasswordRecovery(listener: () => void): () => void {
+  if (!SUPABASE_MODE || !supabase) return () => {};
+
+  const { data } = supabase.auth.onAuthStateChange((event) => {
+    if (event === 'PASSWORD_RECOVERY') listener();
+  });
+
+  return () => data.subscription.unsubscribe();
 }
 

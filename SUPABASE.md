@@ -10,13 +10,31 @@ servizio esterno raggiunto via HTTPS, protetto da login e Row Level Security.
   il pulsante compare solo in quel caso).
 - **Progetti**: tabella `projects` con i dati indicizzati (`owner_id`, `name`,
   `last_modified`) e il computo completo in `payload` (jsonb).
-- **Condivisione**: tabella `project_members` (email dei collaboratori).
+- **Condivisione**: tabella `project_members` (email e ruolo `editor`/`viewer`).
+  Il ruolo è applicato anche dalle policy RLS, non solo dall'interfaccia.
+- **Allegati e prezzari**: i file stanno nel bucket privato `stimia-files`
+  (`<project>/attachments/...`, `<project>/price-books/...`), con cache locale
+  in IndexedDB per l'uso offline.
 - **Sicurezza**: Row Level Security: ogni utente vede solo i propri progetti e
-  quelli condivisi con la sua email. La chiave `anon` può stare nel frontend
-  perché da sola non dà accesso a nulla senza login.
+  quelli condivisi con la sua email; solo gli editor possono scrivere. Il
+  proprietario non può essere cambiato da un collaboratore. La chiave `anon`
+  può stare nel frontend perché da sola non dà accesso a nulla senza login.
+- **Account**: cambio password, recupero via email, eliminazione account
+  (`delete_own_account`) e uscita da tutti i dispositivi.
 - **Offline**: IndexedDB resta la cache locale. Ogni modifica viene salvata subito
   in locale e inviata a Supabase; se sei offline finisce in una coda persistente
   (`syncQueue`) e viene inviata al ritorno della connessione.
+
+## Migrazioni
+
+Le modifiche allo schema sono in `supabase/migrations/`. Per un progetto già
+esistente esegui la migrazione più recente dal **SQL Editor**:
+
+- [`20261115_security_storage.sql`](supabase/migrations/20261115_security_storage.sql)
+  — ruoli RLS, protezione proprietario, tabella allegati, bucket
+  `stimia-files` e funzione di eliminazione account.
+
+`supabase/schema.sql` contiene già tutto per le installazioni nuove.
 
 ## Configurazione (una volta sola)
 

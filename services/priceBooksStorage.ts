@@ -7,6 +7,14 @@ import {
   idbGetAllByIndex,
   idbPut,
 } from './idb';
+import {
+  cloudFilesEnabled,
+  deleteCloudFile,
+  deleteCloudFolder,
+  downloadCloudFile,
+  projectStoragePath,
+  uploadCloudFile,
+} from './cloudFiles';
 
 /**
  * I prezzari piccoli restano dentro il progetto (IndexedDB/Firestore).
@@ -16,6 +24,22 @@ import {
 const LARGE_BOOK_THRESHOLD = 300;
 
 type StoredBook = PriceBook & { projectId: string };
+
+/** Evita di ricaricare lo stesso JSON a ogni salvataggio. */
+const uploadedSnapshots = new Map<string, string>();
+
+async function uploadPriceBook(projectId: string, book: PriceBook): Promise<string | undefined> {
+  if (!cloudFilesEnabled()) return undefined;
+
+  const path = projectStoragePath(projectId, 'price-books', `${book.id}.json`);
+  const payload = JSON.stringify(book);
+
+  if (uploadedSnapshots.get(path) === payload) return path;
+
+  await uploadCloudFile(path, new Blob([payload], { type: 'application/json' }), 'application/json');
+  uploadedSnapshots.set(path, payload);
+  return path;
+}
 
 const countItems = (book: PriceBook): number => {
   let count = 0;
@@ -48,41 +72,57 @@ export async function externalizePriceBooks(projectId: string, books: PriceBook[
 
     if (book.external) {
       if (itemCount > 0) {
-        await idbPut<StoredBook>(STORE_PRICE_BOOKS, {
-          ...book,
-          projectId,
-          external: false,
-        });
+        const storedBook = { ...book, projectId, external: false };
+        await idbPut<StoredBook>(STORE_PRICE_BOOKS, storedBook);
+        let cloudPath = book.cloudPath;
+        try {
+          cloudPath = await uploadPriceBook(projectId, storedBook);
+        } catch (error) {
+          console.warn('Prezzario non caricato sul cloud:', error);
+        }
         metadata.push({
           ...book,
           rootCategory: emptyRoot(book.id),
           external: true,
           itemCount,
+          cloudPath,
         });
       } else {
         metadata.push({
           ...book,
           external: true,
           itemCount: book.itemCount || 0,
+          cloudPath: book.cloudPath,
         });
       }
       continue;
     }
 
     if (itemCount > LARGE_BOOK_THRESHOLD) {
-      await idbPut<StoredBook>(STORE_PRICE_BOOKS, {
-        ...book,
-        projectId,
-        external: false,
-      });
+      const storedBook = { ...book, projectId, external: false };
+      await idbPut<StoredBook>(STORE_PRICE_BOOKS, storedBook);
+      let cloudPath: string | undefined;
+      try {
+        cloudPath = await uploadPriceBook(projectId, storedBook);
+      } catch (error) {
+        console.warn('Prezzario non caricato sul cloud:', error);
+      }
       metadata.push({
         ...book,
         rootCategory: emptyRoot(book.id),
         external: true,
         itemCount,
+        cloudPath,
       });
     } else {
       await idbDelete(STORE_PRICE_BOOKS, book.id);
+      if (book.cloudPath) {
+        try {
+          await deleteCloudFile(book.cloudPath);
+        } catch (error) {
+          console.warn('Prezzario cloud non rimosso:', error);
+        }
+      }
       metadata.push({ ...book, external: false, itemCount });
     }
   }
@@ -90,33 +130,66 @@ export async function externalizePriceBooks(projectId: string, books: PriceBook[
   // Rimuove eventuali prezzari esterni non più presenti nel progetto.
   const keepIds = new Set(books.map(book => book.id));
   const stored = await idbGetAllByIndex<StoredBook>(STORE_PRICE_BOOKS, 'projectId', projectId);
-  const orphans = stored.filter(book => !keepIds.has(book.id)).map(book => book.id);
+  const orphans = stored.filter(book => !keepIds.has(book.id));
   if (orphans.length > 0) {
-    await idbDeleteMany(STORE_PRICE_BOOKS, orphans);
+    await idbDeleteMany(STORE_PRICE_BOOKS, orphans.map(book => book.id));
+    for (const orphan of orphans) {
+      try {
+        await deleteCloudFile(projectStoragePath(projectId, 'price-books', `${orphan.id}.json`));
+      } catch (error) {
+        console.warn('Prezzario cloud orfano non rimosso:', error);
+      }
+    }
   }
 
   return metadata;
 }
 
-export async function hydratePriceBooks(_projectId: string, books: PriceBook[]): Promise<PriceBook[]> {
+export async function hydratePriceBooks(projectId: string, books: PriceBook[]): Promise<PriceBook[]> {
   return Promise.all(books.map(async book => {
     if (!book.external) return book;
 
     const stored = await idbGet<StoredBook>(STORE_PRICE_BOOKS, book.id);
-    if (!stored) return book;
+    if (stored) {
+      const { projectId: _projectId, ...rest } = stored;
+      return {
+        ...rest,
+        external: true,
+        cloudPath: book.cloudPath,
+        itemCount: book.itemCount ?? countItems(rest as PriceBook),
+      };
+    }
 
-    const { projectId: _projectId, ...rest } = stored;
-    return {
-      ...rest,
-      external: true,
-      itemCount: book.itemCount ?? countItems(rest as PriceBook),
-    };
+    // Il prezzario non è in questo browser: prova a scaricarlo dallo Storage.
+    if (book.cloudPath && cloudFilesEnabled()) {
+      try {
+        const blob = await downloadCloudFile(book.cloudPath);
+        const full = JSON.parse(await blob.text()) as PriceBook;
+        const storedBook = { ...full, id: book.id, projectId, external: false };
+        await idbPut<StoredBook>(STORE_PRICE_BOOKS, storedBook);
+        return {
+          ...full,
+          external: true,
+          cloudPath: book.cloudPath,
+          itemCount: book.itemCount ?? countItems(full),
+        };
+      } catch (error) {
+        console.warn('Prezzario cloud non disponibile:', error);
+      }
+    }
+
+    return book;
   }));
 }
 
 export async function deleteProjectPriceBooks(projectId: string): Promise<void> {
   const stored = await idbGetAllByIndex<StoredBook>(STORE_PRICE_BOOKS, 'projectId', projectId);
   await idbDeleteMany(STORE_PRICE_BOOKS, stored.map(book => book.id));
+  try {
+    await deleteCloudFolder(projectId, 'price-books');
+  } catch (error) {
+    console.warn('Prezzari cloud non rimossi:', error);
+  }
 }
 
 export async function duplicateProjectPriceBooks(
@@ -140,12 +213,20 @@ export async function duplicateProjectPriceBooks(
 
     const newId = makeId();
     const { projectId: _source, external: _external, ...bookData } = stored;
-    await idbPut<StoredBook>(STORE_PRICE_BOOKS, {
+    const newBook = {
       ...bookData,
       id: newId,
       projectId: targetProjectId,
       external: false,
-    });
+    };
+    await idbPut<StoredBook>(STORE_PRICE_BOOKS, newBook);
+
+    let cloudPath: string | undefined;
+    try {
+      cloudPath = await uploadPriceBook(targetProjectId, newBook);
+    } catch (error) {
+      console.warn('Copia del prezzario non caricata sul cloud:', error);
+    }
 
     result.push({
       ...book,
@@ -153,6 +234,7 @@ export async function duplicateProjectPriceBooks(
       rootCategory: emptyRoot(newId),
       external: true,
       itemCount: book.itemCount,
+      cloudPath,
     });
   }
 

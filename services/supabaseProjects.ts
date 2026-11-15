@@ -96,6 +96,24 @@ export async function upsertRemoteProject(project: Project): Promise<void> {
       ),
     );
 
+    // Il ruolo nel database deve rispecchiare i permessi dell'interfaccia:
+    // altrimenti un "viewer" potrebbe comunque scrivere via API.
+    const roleFor = (email: string): 'editor' | 'viewer' => {
+      const permissionKey = Object.keys(project.memberPermissions || {})
+        .find((key) => key.toLowerCase() === email);
+      const permission = permissionKey ? project.memberPermissions?.[permissionKey] : undefined;
+      if (permission) {
+        return permission.canWrite || permission.canEditSAL || permission.canEditPriceBooks
+          ? 'editor'
+          : 'viewer';
+      }
+
+      const collaboratorKey = Object.keys(project.collaborators || {})
+        .find((key) => key.toLowerCase() === email);
+      const collaboratorRole = collaboratorKey ? project.collaborators?.[collaboratorKey] : undefined;
+      return collaboratorRole === 'editor' ? 'editor' : 'viewer';
+    };
+
     const { error: deleteError } = await client
       .from('project_members')
       .delete()
@@ -105,7 +123,7 @@ export async function upsertRemoteProject(project: Project): Promise<void> {
     if (emails.length > 0) {
       const { error: insertError } = await client
         .from('project_members')
-        .insert(emails.map((email) => ({ project_id: project.id, email })));
+        .insert(emails.map((email) => ({ project_id: project.id, email, role: roleFor(email) })));
       if (insertError) throw new Error(insertError.message);
     }
   }

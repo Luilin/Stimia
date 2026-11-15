@@ -12,6 +12,7 @@ import {
   X, Paperclip, Upload, Download, Trash2, FolderOpen, Image, FileText, File, ExternalLink,
   Loader2, AlertTriangle, Cloud, Info,
 } from 'lucide-react';
+import { cloudFilesEnabled } from '../services/cloudFiles';
 
 interface Props {
   project: Project;
@@ -173,7 +174,10 @@ export const AttachmentsModal: React.FC<Props> = ({ project, canEdit, canExport,
             <div className="space-y-3 rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
               <h3 className="text-sm font-bold text-slate-800">Carica allegati</h3>
               <p className="text-xs text-slate-500">
-                PDF, foto di cantiere, contratti, DURC, offerte, certificati. I file restano nel browser (IndexedDB).
+                PDF, foto di cantiere, contratti, DURC, offerte, certificati.{' '}
+                {cloudFilesEnabled()
+                  ? 'I file vengono sincronizzati sul database SQL e restano in cache nel browser.'
+                  : 'I file restano nel browser (IndexedDB).'}
               </p>
 
               <label className="block">
@@ -296,7 +300,9 @@ export const AttachmentsModal: React.FC<Props> = ({ project, canEdit, canExport,
 
               <p className="mt-2 flex items-start gap-1.5 text-[11px] text-slate-400">
                 <Info size={13} className="mt-0.5 shrink-0" />
-                Gli allegati sono salvati localmente in questo browser e non vengono inclusi nel backup JSON. Per condividerli usa la cartella cloud.
+                {cloudFilesEnabled()
+                  ? 'Gli allegati sono salvati su Supabase Storage e condivisi con i membri del progetto; la copia locale serve per l’uso offline.'
+                  : 'Gli allegati sono salvati localmente in questo browser e non vengono inclusi nel backup JSON. Per condividerli usa la cartella cloud.'}
               </p>
             </div>
           </div>

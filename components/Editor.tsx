@@ -438,6 +438,47 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
       }
   };
 
+  // Scorciatoie: Ctrl/Cmd+Z annulla, Ctrl/Cmd+Y ripete, Ctrl/Cmd+S salva.
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (!event.ctrlKey && !event.metaKey) return;
+
+      const target = event.target as HTMLElement | null;
+      const isEditable = Boolean(
+        target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable),
+      );
+
+      const key = event.key.toLowerCase();
+
+      // Il salvataggio vale anche mentre si scrive in un campo.
+      if (key === 's') {
+        event.preventDefault();
+        if (isReadOnly) return;
+        saveProject(projectRef.current)
+          .then(() => notify('Computo salvato.', 'success'))
+          .catch((error) => {
+            console.error('Errore salvataggio manuale:', error);
+            notify('Salvataggio non riuscito.', 'error');
+          });
+        return;
+      }
+
+      // Dentro input e textarea lasciamo che undo/redo gestiscano il testo.
+      if (isEditable) return;
+
+      if (key === 'z' && !event.shiftKey) {
+        event.preventDefault();
+        handleUndo();
+      } else if (key === 'y' || (key === 'z' && event.shiftKey)) {
+        event.preventDefault();
+        handleRedo();
+      }
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [handleUndo, handleRedo, isReadOnly]);
+
   const handleUpdatePriceBooks = (newBooks: Project['priceBooks']) => {
       if (!newBooks) return;
 

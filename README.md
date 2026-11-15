@@ -142,8 +142,10 @@ services/
   localProjects.ts            Archivio progetti in IndexedDB
   supabase.ts                 Client Supabase
   supabaseProjects.ts         CRUD progetti su Postgres + cache e coda offline
-  firebase.ts                 Inizializzazione Firebase
+  cloudFiles.ts               Storage Supabase per allegati e prezzari
+  firebase.ts                 Inizializzazione Firebase (legacy)
 supabase/schema.sql           Tabelle, indici, trigger e policy RLS
+supabase/migrations/          Migrazioni incrementali per progetti esistenti
 .github/workflows/deploy.yml  Build e deploy su GitHub Pages
 
 ```
@@ -192,11 +194,12 @@ location.reload();
 | --- | --- |
 | `npm run dev` | Dev server in modalità locale |
 | `npm run dev:cloud` | Dev server collegato a Firebase |
-| `npm run build` | Build di produzione con Firebase |
+| `npm run build` | Build di produzione (Supabase se configurato) |
 | `npm run build:local` | Build di produzione in modalità locale |
 | `npm run preview` | Anteprima della build |
 | `npm run preview:local` | Anteprima della build locale |
 | `npm run lint` | Controllo TypeScript (`tsc --noEmit`) |
+| `npm test` | Test automatici (Vitest) |
 
 ---
 
@@ -205,6 +208,8 @@ location.reload();
 - Tailwind CSS è compilato localmente tramite PostCSS: non serve più il CDN.
 - PDF.js è installato come dipendenza npm e il worker viene servito da Vite: funziona offline.
 - L'editor salva automaticamente il progetto circa un secondo dopo ogni modifica.
+- In modalità Supabase allegati e prezzari grandi vengono sincronizzati nel
+  bucket privato `stimia-files`; IndexedDB resta la cache offline.
 - In modalità cloud i campi complessi del progetto vengono serializzati in JSON su Firestore per evitare limiti di annidamento e chiavi con punti (email).
 
 ---

@@ -73,10 +73,14 @@ export {
 export {
   GoogleAuthProvider,
   createUserWithEmailAndPassword,
+  deleteUser,
   onAuthStateChanged,
+  sendEmailVerification,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
+  updatePassword,
 } from "firebase/auth";
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
