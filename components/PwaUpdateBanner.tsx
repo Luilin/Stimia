@@ -23,7 +23,16 @@ export const PwaUpdateBanner: React.FC = () => {
       .register(`${import.meta.env.BASE_URL}sw.js`)
       .then((registration) => {
         if (cancelled) return;
-        if (registration.waiting) setWaiting(registration.waiting);
+
+        const checkWaiting = () => {
+          if (!cancelled && registration.waiting) setWaiting(registration.waiting);
+        };
+
+        checkWaiting();
+        // Il nuovo service worker può passare in "waiting" qualche istante
+        // dopo la registrazione: ricontrolla senza dipendere dall'evento.
+        const firstCheck = window.setTimeout(checkWaiting, 1500);
+        const secondCheck = window.setTimeout(checkWaiting, 5000);
 
         registration.addEventListener('updatefound', () => {
           const installing = registration.installing;
@@ -33,6 +42,11 @@ export const PwaUpdateBanner: React.FC = () => {
             }
           });
         });
+
+        return () => {
+          window.clearTimeout(firstCheck);
+          window.clearTimeout(secondCheck);
+        };
       })
       .catch((error) => console.warn('Service worker non registrato:', error));
 

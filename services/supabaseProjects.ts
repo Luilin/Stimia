@@ -72,22 +72,36 @@ export async function upsertRemoteProject(project: Project): Promise<void> {
   if (!user) throw new Error('Not authenticated');
 
   const ownerId = project.userId || user.uid;
+  const isOwner = ownerId === user.uid;
 
-  const { error } = await client.from('projects').upsert(
-    {
-      id: project.id,
-      owner_id: ownerId,
-      owner_email: user.email || null,
-      name: project.name,
-      last_modified: project.lastModified,
-      payload: project,
-    },
-    { onConflict: 'id' },
-  );
-  if (error) throw new Error(error.message);
+  const row = {
+    id: project.id,
+    owner_id: ownerId,
+    owner_email: user.email || null,
+    name: project.name,
+    last_modified: project.lastModified,
+    payload: project,
+  };
+
+  if (isOwner) {
+    const { error } = await client.from('projects').upsert(row, { onConflict: 'id' });
+    if (error) throw new Error(error.message);
+  } else {
+    // Un collaboratore non può creare il progetto (né diventarne proprietario):
+    // può solo aggiornare una riga già condivisa.
+    const { data, error } = await client
+      .from('projects')
+      .update(row)
+      .eq('id', project.id)
+      .select('id');
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) {
+      throw new Error('Progetto non disponibile sul cloud.');
+    }
+  }
 
   // I membri possono essere gestiti solo dal proprietario del progetto.
-  if (ownerId === user.uid) {
+  if (isOwner) {
     const emails = Array.from(
       new Set(
         (project.sharedWithEmails || [])
@@ -161,6 +175,17 @@ export async function flushSyncQueue(): Promise<void> {
       }
       await idbDelete(STORE_SYNC_QUEUE, entry.projectId);
     } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const permanent = /row-level security|non disponibile sul cloud|violates row-level|42501/i.test(message);
+
+      if (permanent) {
+        // Errore non recuperabile (permessi o progetto rimosso/condivisione
+        // revocata): non ha senso riprovare a ogni avvio.
+        console.warn('Sincronizzazione annullata:', entry.projectId, message);
+        await idbDelete(STORE_SYNC_QUEUE, entry.projectId);
+        continue;
+      }
+
       // Probabilmente offline: si riprova al prossimo giro.
       console.warn('Sincronizzazione rimandata:', error);
       break;

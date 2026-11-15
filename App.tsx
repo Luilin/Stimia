@@ -22,6 +22,11 @@ import { isGoogleAuthAvailable } from './services/supabase';
 // prefetch in background per mantenere l'uso offline.
 const Editor = React.lazy(() => import('./components/Editor').then(module => ({ default: module.Editor })));
 
+const makeProjectId = () =>
+  typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `p_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+
 async function testConnection() {
   if (LOCAL_MODE || SUPABASE_MODE) return;
   try {
@@ -313,7 +318,7 @@ export default function App() {
     e.preventDefault();
     if (newProjectName.trim() && currentUser) {
       const newProject: Project = {
-        id: 'temp-' + Math.random().toString(36).substr(2, 9),
+        id: makeProjectId(),
         name: newProjectName.trim(),
         description: newProjectDesc.trim(),
         lastModified: Date.now(),
@@ -407,7 +412,7 @@ export default function App() {
 
     try {
       const copy: Project = JSON.parse(JSON.stringify(project));
-      copy.id = `temp-${Math.random().toString(36).slice(2, 11)}`;
+      copy.id = makeProjectId();
       copy.name = `${project.name} (copia)`;
       copy.userId = currentUser.uid;
       copy.createdBy = currentUser.email || project.createdBy;
