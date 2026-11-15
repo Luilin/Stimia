@@ -1,14 +1,7 @@
 import { LOCAL_MODE, SUPABASE_MODE } from './mode';
 import { supabase } from './supabase';
-import { auth } from './firebase';
-import {
-  onAuthStateChanged as firebaseOnAuthStateChanged,
-  signInWithPopup,
-  GoogleAuthProvider,
-  signOut as firebaseSignOut,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-} from 'firebase/auth';
+import type { Auth as FirebaseAuth } from 'firebase/auth';
+import { loadFirebaseServices } from './firebaseLoader';
 
 /**
  * Utente semplificato usato dall'interfaccia. In modalità cloud viene mappato
@@ -29,6 +22,20 @@ const localListeners = new Set<AuthListener>();
 
 /** Utente Supabase correntemente autenticato (aggiornato dagli eventi auth). */
 let cloudUser: AuthUser | null = null;
+
+/** Istanza Firebase Auth: caricata solo nella vecchia modalità cloud. */
+let firebaseAuth: FirebaseAuth | null = null;
+
+if (!LOCAL_MODE && !SUPABASE_MODE) {
+  // Precarica in background, ma solo se Firebase è davvero la modalità attiva.
+  loadFirebaseServices()
+    .then((fb) => {
+      firebaseAuth = fb.auth;
+    })
+    .catch((error) => {
+      console.warn('Firebase non disponibile:', error);
+    });
+}
 
 function mapSupabaseUser(user: {
   id: string;
@@ -113,7 +120,7 @@ function writeLocalSession(user: AuthUser | null) {
 export function getCurrentUser(): AuthUser | null {
   if (SUPABASE_MODE) return cloudUser;
   if (LOCAL_MODE) return readLocalSession();
-  return auth.currentUser ? mapFirebaseUser(auth.currentUser) : null;
+  return firebaseAuth?.currentUser ? mapFirebaseUser(firebaseAuth.currentUser) : null;
 }
 
 export function onAuthStateChanged(listener: AuthListener): () => void {
@@ -160,9 +167,26 @@ export function onAuthStateChanged(listener: AuthListener): () => void {
     };
   }
 
-  return firebaseOnAuthStateChanged(auth, (user) => {
-    listener(user ? mapFirebaseUser(user) : null);
-  });
+  let firebaseUnsubscribe: (() => void) | null = null;
+  let cancelled = false;
+
+  loadFirebaseServices()
+    .then((fb) => {
+      firebaseAuth = fb.auth;
+      if (cancelled) return;
+      firebaseUnsubscribe = fb.onAuthStateChanged(fb.auth, (user) => {
+        listener(user ? mapFirebaseUser(user) : null);
+      });
+    })
+    .catch((error) => {
+      console.warn('Firebase non disponibile:', error);
+      if (!cancelled) listener(null);
+    });
+
+  return () => {
+    cancelled = true;
+    firebaseUnsubscribe?.();
+  };
 }
 
 export async function signInWithEmail(
@@ -218,9 +242,10 @@ export async function signInWithEmail(
     return user;
   }
 
+  const fb = await loadFirebaseServices();
   const credential = register
-    ? await createUserWithEmailAndPassword(auth, email, password)
-    : await signInWithEmailAndPassword(auth, email, password);
+    ? await fb.createUserWithEmailAndPassword(fb.auth, email, password)
+    : await fb.signInWithEmailAndPassword(fb.auth, email, password);
 
   return mapFirebaseUser(credential.user);
 }
@@ -251,8 +276,9 @@ export async function signInWithGoogle(): Promise<AuthUser> {
     return user;
   }
 
-  const provider = new GoogleAuthProvider();
-  const credential = await signInWithPopup(auth, provider);
+  const fb = await loadFirebaseServices();
+  const provider = new fb.GoogleAuthProvider();
+  const credential = await fb.signInWithPopup(fb.auth, provider);
   return mapFirebaseUser(credential.user);
 }
 
@@ -268,6 +294,7 @@ export async function signOut(): Promise<void> {
     emitLocal(null);
     return;
   }
-  await firebaseSignOut(auth);
+  const fb = await loadFirebaseServices();
+  await fb.signOut(fb.auth);
 }
 

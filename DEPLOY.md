@@ -10,23 +10,22 @@ Questa app è una SPA (Vite + React) senza backend. Su Railway viene servita da
 
 ---
 
-## 1. Modalità dati: locale o Firebase
+## 1. Modalità dati: Supabase, locale o Firebase
 
-La modalità si sceglie in fase di **build** con la variabile `VITE_LOCAL_MODE`.
+La modalità si sceglie in fase di **build** con le variabili d'ambiente.
 
 | Modalità | Comportamento | Cosa serve |
 | --- | --- | --- |
-| **Locale** (consigliata per iniziare) | Login con qualsiasi email, dati in IndexedDB nel browser di chi usa l'app | niente |
-| **Firebase** | Login reale, dati su Firestore, condivisione col team | progetto Firebase configurato e dominio autorizzato |
+| **Supabase** (consigliata) | Login reale, dati su Postgres, cache offline | `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` |
+| **Locale** | Login con qualsiasi email, dati in IndexedDB nel browser di chi usa l'app | niente |
+| **Firebase** (legacy) | Login reale, dati su Firestore, condivisione col team | progetto Firebase configurato e dominio autorizzato |
 
-La build di default (`npm run build`) usa **Firebase**; `npm run build:local`
-forza la modalità locale. Su Railway conviene agire per variabile:
+Con `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` presenti la build usa
+**Supabase**. Senza queste variabili `npm run build` usa Firebase;
+`npm run build:local` forza la modalità locale.
 
-- locale: imposta `VITE_LOCAL_MODE=true` tra le Variables del servizio;
-- Firebase: lascia la variabile vuota/assente.
-
-> Nota: i dati locali e quelli Firebase sono archivi separati. Il passaggio da
-> una modalità all'altra non migra i progetti.
+> Nota: i dati locali, quelli Supabase e quelli Firebase sono archivi separati.
+> Il passaggio da una modalità all'altra non migra i progetti.
 
 ### Se scegli Firebase
 

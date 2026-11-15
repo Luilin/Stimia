@@ -1,7 +1,6 @@
 
 import { Project, WBSNode } from '../types';
-import { db, handleFirestoreError, OperationType, auth } from './firebase';
-import { collection, doc, getDocs, setDoc, deleteDoc, query, where } from 'firebase/firestore';
+import { loadFirebaseServices } from './firebaseLoader';
 import { LOCAL_MODE, SUPABASE_MODE } from './mode';
 import * as localProjects from './localProjects';
 import * as supabaseProjects from './supabaseProjects';
@@ -75,15 +74,17 @@ export const getProjects = async (): Promise<{ data: Project[], error: any }> =>
   if (LOCAL_MODE) return localProjects.getProjects();
 
   try {
-    const userId = auth.currentUser?.uid;
-    const userEmail = auth.currentUser?.email;
+    // Firebase viene scaricato solo se si usa davvero questa modalità.
+    const fb = await loadFirebaseServices();
+    const userId = fb.auth.currentUser?.uid;
+    const userEmail = fb.auth.currentUser?.email;
     if (!userId) return { data: [], error: 'Not authenticated' };
 
-    const projectsRef = collection(db, 'projects');
+    const projectsRef = fb.collection(fb.db, 'projects');
     
     // First query: projects owned by the user
-    const q1 = query(projectsRef, where('userId', '==', userId));
-    const snapshot1 = await getDocs(q1);
+    const q1 = fb.query(projectsRef, fb.where('userId', '==', userId));
+    const snapshot1 = await fb.getDocs(q1);
     const projects: Project[] = snapshot1.docs.map(doc => hydrateProject(doc.id, doc.data()));
     
     // Second query: projects shared with the user
@@ -94,7 +95,7 @@ export const getProjects = async (): Promise<{ data: Project[], error: any }> =>
         
         const snapshots = await Promise.all(
           emailsToQuery.map(email => 
-            getDocs(query(projectsRef, where('sharedWithEmails', 'array-contains', email)))
+            fb.getDocs(fb.query(projectsRef, fb.where('sharedWithEmails', 'array-contains', email)))
           )
         );
         
@@ -117,7 +118,8 @@ export const getProjects = async (): Promise<{ data: Project[], error: any }> =>
     
     return { data: projects, error: null };
   } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, 'projects');
+    const fb = await loadFirebaseServices().catch(() => null);
+    fb?.handleFirestoreError(error, fb.OperationType.LIST, 'projects');
     return { data: [], error: "Errore nel caricamento dei progetti" };
   }
 };
@@ -127,8 +129,9 @@ export const saveProject = async (project: Project): Promise<void> => {
   if (LOCAL_MODE) return localProjects.saveProject(project);
 
   try {
-    const userId = auth.currentUser?.uid;
-    const userEmail = auth.currentUser?.email;
+    const fb = await loadFirebaseServices();
+    const userId = fb.auth.currentUser?.uid;
+    const userEmail = fb.auth.currentUser?.email;
     if (!userId) throw new Error('Not authenticated');
 
     const createdByLower = (project.createdBy || '').toLowerCase();
@@ -190,9 +193,10 @@ export const saveProject = async (project: Project): Promise<void> => {
       }
     });
     
-    await setDoc(doc(db, 'projects', project.id), dbPayload);
+    await fb.setDoc(fb.doc(fb.db, 'projects', project.id), dbPayload);
   } catch (error) {
-    handleFirestoreError(error, OperationType.WRITE, `projects/${project.id}`);
+    const fb = await loadFirebaseServices().catch(() => null);
+    fb?.handleFirestoreError(error, fb.OperationType.WRITE, `projects/${project.id}`);
   }
 };
 
@@ -201,8 +205,10 @@ export const deleteProject = async (projectId: string): Promise<void> => {
   if (LOCAL_MODE) return localProjects.deleteProject(projectId);
 
   try {
-    await deleteDoc(doc(db, 'projects', projectId));
+    const fb = await loadFirebaseServices();
+    await fb.deleteDoc(fb.doc(fb.db, 'projects', projectId));
   } catch (error) {
-    handleFirestoreError(error, OperationType.DELETE, `projects/${projectId}`);
+    const fb = await loadFirebaseServices().catch(() => null);
+    fb?.handleFirestoreError(error, fb.OperationType.DELETE, `projects/${projectId}`);
   }
 };

@@ -6,7 +6,8 @@ servizio esterno raggiunto via HTTPS, protetto da login e Row Level Security.
 
 ## Come funziona
 
-- **Login**: Supabase Auth (email + password, oppure Google).
+- **Login**: Supabase Auth (email + password; Google se il provider è abilitato:
+  il pulsante compare solo in quel caso).
 - **Progetti**: tabella `projects` con i dati indicizzati (`owner_id`, `name`,
   `last_modified`) e il computo completo in `payload` (jsonb).
 - **Condivisione**: tabella `project_members` (email dei collaboratori).

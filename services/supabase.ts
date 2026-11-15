@@ -26,3 +26,23 @@ export const supabase: SupabaseClient | null = SUPABASE_MODE
       },
     })
   : null;
+
+/**
+ * True se il provider Google è abilitato nel progetto Supabase.
+ * Il pulsante "Accedi con Google" viene mostrato solo in quel caso:
+ * altrimenti l'utente vedrebbe un pulsante che restituisce errore.
+ */
+let googleProviderPromise: Promise<boolean> | null = null;
+
+export function isGoogleAuthAvailable(): Promise<boolean> {
+  if (!SUPABASE_MODE) return Promise.resolve(false);
+
+  googleProviderPromise ??= fetch(`${SUPABASE_URL}/auth/v1/settings`, {
+    headers: { apikey: SUPABASE_ANON_KEY },
+  })
+    .then((response) => (response.ok ? response.json() : null))
+    .then((settings: { external?: { google?: boolean } } | null) => Boolean(settings?.external?.google))
+    .catch(() => false);
+
+  return googleProviderPromise;
+}

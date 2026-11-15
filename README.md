@@ -33,7 +33,7 @@ In modalità locale:
 
 - puoi accedere con **qualsiasi email** e una password di almeno 6 caratteri;
 - il pulsante **Accedi come utente demo** entra con `demo@locale.it`;
-- i progetti sono salvati nel `localStorage` del browser (nessun dato viene inviato a Firebase);
+- i progetti sono salvati in **IndexedDB** (nessun dato viene inviato al cloud);
 - i dati restano disponibili anche dopo aver riavviato il dev server, finché non svuoti i dati del sito.
 
 > La modalità locale è attiva automaticamente con `npm run dev`.
@@ -42,9 +42,11 @@ In modalità locale:
 
 ---
 
-## Modalità cloud (Firebase)
+## Modalità cloud (Firebase — legacy)
 
-La modalità cloud usa Firebase Authentication e Firestore, come la versione pubblicata.
+La modalità cloud storica usa Firebase Authentication e Firestore. La versione
+pubblicata su GitHub Pages usa invece **Supabase** (vedi sotto); Firebase resta
+disponibile solo quando non sono configurate le variabili Supabase.
 
 ```bash
 npm run dev:cloud
@@ -94,9 +96,12 @@ Guida completa, schema SQL e configurazione GitHub Pages:
 ## Build di produzione
 
 ```bash
-npm run build      # build con Firebase (produzione)
+npm run build      # build di produzione (Supabase se configurato)
 npm run preview    # anteprima della build su http://localhost:4173
 ```
+
+> Firebase e le librerie pesanti (xlsx, pdf.js, pdf-lib) vengono caricate solo
+> quando servono: l'avvio non scarica più il bundle Firebase.
 
 Per provare una build in modalità locale:
 
@@ -111,7 +116,7 @@ Output della build: cartella `dist/`.
 
 - Build command: `npm run build`
 - Output directory: `dist`
-- Non impostare `VITE_LOCAL_MODE=true` in produzione, altrimenti l'app userà il browser invece di Firebase.
+- Non impostare `VITE_LOCAL_MODE=true` in produzione, altrimenti l'app userà il browser invece del cloud.
 
 ---
 
