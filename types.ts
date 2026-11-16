@@ -214,14 +214,6 @@ export interface ProjectVariant {
   notes?: string;
 }
 
-export type SOACategory =
-  | 'OG1' | 'OG2' | 'OG3' | 'OG4' | 'OG5' | 'OG6' | 'OG7' | 'OG8' | 'OG9' | 'OG10'
-  | 'OG11' | 'OG12' | 'OG13'
-  | 'OS1' | 'OS2' | 'OS3' | 'OS4' | 'OS5' | 'OS6' | 'OS7' | 'OS8' | 'OS9' | 'OS10'
-  | 'OS11' | 'OS12' | 'OS13' | 'OS14' | 'OS15' | 'OS16' | 'OS17' | 'OS18' | 'OS19'
-  | 'OS20' | 'OS21' | 'OS22' | 'OS23' | 'OS24' | 'OS25' | 'OS26' | 'OS27' | 'OS28'
-  | 'OS29' | 'OS30' | 'OS31' | 'OS32' | 'OS33' | 'OS34' | 'OS35';
-
 export interface QuadroEconomicoSettings {
   ivaPercent: number;
   imprevistiPercent: number;
@@ -328,7 +320,7 @@ export interface Project {
   description: string;
   lastModified: number;
   createdBy: string;
-  userId?: string; // ID of the user in Firebase Auth
+  userId?: string; // ID of the user in Supabase Auth
   rootWBS: WBSNode; // The root node of the tree
   sals?: SAL[]; // List of Progress Payments
   collaborators?: Record<string, 'editor' | 'viewer' | 'ditta'>; // email -> role

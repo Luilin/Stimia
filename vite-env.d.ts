@@ -2,8 +2,6 @@
 
 interface ImportMetaEnv {
   readonly VITE_LOCAL_MODE?: string;
-}
-
-interface ImportMeta {
-  readonly env: ImportMetaEnv;
+  readonly VITE_SUPABASE_URL?: string;
+  readonly VITE_SUPABASE_ANON_KEY?: string;
 }

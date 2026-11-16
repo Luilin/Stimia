@@ -7,8 +7,8 @@ import { supabase } from './supabase';
  *   <projectId>/attachments/<attachmentId>
  *   <projectId>/price-books/<priceBookId>.json
  *
- * Se Supabase non è configurato (modalità locale/Firebase) le funzioni
- * restituiscono null/errore e l'app continua a usare IndexedDB.
+ * Se Supabase non è configurato (modalità locale) le funzioni restituiscono
+ * null/errore e l'app continua a usare IndexedDB.
  */
 export const FILES_BUCKET = 'stimia-files';
 

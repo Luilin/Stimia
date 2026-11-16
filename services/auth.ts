@@ -1,17 +1,14 @@
-import { LOCAL_MODE, SUPABASE_MODE } from './mode';
+import { SUPABASE_MODE } from './mode';
 import { supabase } from './supabase';
-import type { Auth as FirebaseAuth } from 'firebase/auth';
-import { loadFirebaseServices } from './firebaseLoader';
 
 /**
- * Utente semplificato usato dall'interfaccia. In modalità cloud viene mappato
- * da FirebaseUser, in modalità locale viene salvato nel browser.
+ * Utente semplificato usato dall'interfaccia. In modalità Supabase viene
+ * mappato dall'utente autenticato, in modalità locale viene salvato nel browser.
  */
 export interface AuthUser {
   uid: string;
   email: string;
   displayName?: string | null;
-  isLocal?: boolean;
 }
 
 type AuthListener = (user: AuthUser | null) => void;
@@ -29,7 +26,7 @@ export const isPasswordRecoveryRedirect = (): boolean => passwordRecoveryRedirec
 
 function appRedirectUrl(): string | undefined {
   if (typeof window === 'undefined') return undefined;
-  const base = (import.meta as any).env?.BASE_URL || '/';
+  const base = import.meta.env.BASE_URL || '/';
   return window.location.origin + base;
 }
 
@@ -37,20 +34,6 @@ const localListeners = new Set<AuthListener>();
 
 /** Utente Supabase correntemente autenticato (aggiornato dagli eventi auth). */
 let cloudUser: AuthUser | null = null;
-
-/** Istanza Firebase Auth: caricata solo nella vecchia modalità cloud. */
-let firebaseAuth: FirebaseAuth | null = null;
-
-if (!LOCAL_MODE && !SUPABASE_MODE) {
-  // Precarica in background, ma solo se Firebase è davvero la modalità attiva.
-  loadFirebaseServices()
-    .then((fb) => {
-      firebaseAuth = fb.auth;
-    })
-    .catch((error) => {
-      console.warn('Firebase non disponibile:', error);
-    });
-}
 
 function mapSupabaseUser(user: {
   id: string;
@@ -77,18 +60,6 @@ if (SUPABASE_MODE && supabase) {
     .catch(() => {
       cloudUser = null;
     });
-}
-
-function mapFirebaseUser(user: {
-  uid: string;
-  email: string | null;
-  displayName: string | null;
-}): AuthUser {
-  return {
-    uid: user.uid,
-    email: user.email || '',
-    displayName: user.displayName,
-  };
 }
 
 function emitLocal(user: AuthUser | null) {
@@ -134,8 +105,7 @@ function writeLocalSession(user: AuthUser | null) {
 
 export function getCurrentUser(): AuthUser | null {
   if (SUPABASE_MODE) return cloudUser;
-  if (LOCAL_MODE) return readLocalSession();
-  return firebaseAuth?.currentUser ? mapFirebaseUser(firebaseAuth.currentUser) : null;
+  return readLocalSession();
 }
 
 export function onAuthStateChanged(listener: AuthListener): () => void {
@@ -171,36 +141,13 @@ export function onAuthStateChanged(listener: AuthListener): () => void {
     };
   }
 
-  if (LOCAL_MODE) {
-    localListeners.add(listener);
-    // Chiamata asincrona per imitare il comportamento di Firebase.
-    Promise.resolve().then(() => {
-      if (localListeners.has(listener)) listener(readLocalSession());
-    });
-    return () => {
-      localListeners.delete(listener);
-    };
-  }
-
-  let firebaseUnsubscribe: (() => void) | null = null;
-  let cancelled = false;
-
-  loadFirebaseServices()
-    .then((fb) => {
-      firebaseAuth = fb.auth;
-      if (cancelled) return;
-      firebaseUnsubscribe = fb.onAuthStateChanged(fb.auth, (user) => {
-        listener(user ? mapFirebaseUser(user) : null);
-      });
-    })
-    .catch((error) => {
-      console.warn('Firebase non disponibile:', error);
-      if (!cancelled) listener(null);
-    });
-
+  localListeners.add(listener);
+  // Chiamata asincrona per imitare il comportamento del cloud.
+  Promise.resolve().then(() => {
+    if (localListeners.has(listener)) listener(readLocalSession());
+  });
   return () => {
-    cancelled = true;
-    firebaseUnsubscribe?.();
+    localListeners.delete(listener);
   };
 }
 
@@ -242,27 +189,17 @@ export async function signInWithEmail(
     return user;
   }
 
-  if (LOCAL_MODE) {
-    if (!email.trim() || password.length < 6) {
-      throw new Error('Inserisci una email valida e una password di almeno 6 caratteri.');
-    }
-    const user: AuthUser = {
-      uid: localUidForEmail(email),
-      email: normalizeEmail(email),
-      displayName: null,
-      isLocal: true,
-    };
-    writeLocalSession(user);
-    emitLocal(user);
-    return user;
+  if (!email.trim() || password.length < 6) {
+    throw new Error('Inserisci una email valida e una password di almeno 6 caratteri.');
   }
-
-  const fb = await loadFirebaseServices();
-  const credential = register
-    ? await fb.createUserWithEmailAndPassword(fb.auth, email, password)
-    : await fb.signInWithEmailAndPassword(fb.auth, email, password);
-
-  return mapFirebaseUser(credential.user);
+  const user: AuthUser = {
+    uid: localUidForEmail(email),
+    email: normalizeEmail(email),
+    displayName: null,
+  };
+  writeLocalSession(user);
+  emitLocal(user);
+  return user;
 }
 
 export async function signInWithGoogle(): Promise<AuthUser> {
@@ -280,23 +217,15 @@ export async function signInWithGoogle(): Promise<AuthUser> {
     return cloudUser || { uid: '', email: '', displayName: null };
   }
 
-  if (LOCAL_MODE) {
-    // In locale non serve un popup: si entra con un account demo.
-    const user: AuthUser = {
-      uid: localUidForEmail('demo@locale.it'),
-      email: 'demo@locale.it',
-      displayName: 'Utente Demo',
-      isLocal: true,
-    };
-    writeLocalSession(user);
-    emitLocal(user);
-    return user;
-  }
-
-  const fb = await loadFirebaseServices();
-  const provider = new fb.GoogleAuthProvider();
-  const credential = await fb.signInWithPopup(fb.auth, provider);
-  return mapFirebaseUser(credential.user);
+  // In locale non serve un popup: si entra con un account demo.
+  const user: AuthUser = {
+    uid: localUidForEmail('demo@locale.it'),
+    email: 'demo@locale.it',
+    displayName: 'Utente Demo',
+  };
+  writeLocalSession(user);
+  emitLocal(user);
+  return user;
 }
 
 export async function signOut(): Promise<void> {
@@ -306,13 +235,9 @@ export async function signOut(): Promise<void> {
     emitLocal(null);
     return;
   }
-  if (LOCAL_MODE) {
-    writeLocalSession(null);
-    emitLocal(null);
-    return;
-  }
-  const fb = await loadFirebaseServices();
-  await fb.signOut(fb.auth);
+
+  writeLocalSession(null);
+  emitLocal(null);
 }
 
 export async function sendPasswordReset(email: string): Promise<void> {
@@ -328,12 +253,7 @@ export async function sendPasswordReset(email: string): Promise<void> {
     return;
   }
 
-  if (LOCAL_MODE) {
-    throw new Error('In modalità locale non serve recuperare la password: puoi entrare con una email qualsiasi.');
-  }
-
-  const fb = await loadFirebaseServices();
-  await fb.sendPasswordResetEmail(fb.auth, normalized);
+  throw new Error('In modalità locale non serve recuperare la password: puoi entrare con una email qualsiasi.');
 }
 
 export async function updatePassword(password: string): Promise<void> {
@@ -348,13 +268,7 @@ export async function updatePassword(password: string): Promise<void> {
     return;
   }
 
-  if (LOCAL_MODE) {
-    throw new Error('La password è simulata in modalità locale.');
-  }
-
-  const fb = await loadFirebaseServices();
-  if (!fb.auth.currentUser) throw new Error('Sessione non valida.');
-  await fb.updatePassword(fb.auth.currentUser, password);
+  throw new Error('La password è simulata in modalità locale.');
 }
 
 export async function resendConfirmation(email: string): Promise<void> {
@@ -371,13 +285,7 @@ export async function resendConfirmation(email: string): Promise<void> {
     return;
   }
 
-  if (LOCAL_MODE) {
-    throw new Error('Non serve in modalità locale.');
-  }
-
-  const fb = await loadFirebaseServices();
-  if (!fb.auth.currentUser) throw new Error('Accedi prima per reinviare la conferma.');
-  await fb.sendEmailVerification(fb.auth.currentUser);
+  throw new Error('Non serve in modalità locale.');
 }
 
 export async function signOutEverywhere(): Promise<void> {
@@ -402,14 +310,7 @@ export async function deleteAccount(): Promise<void> {
     return;
   }
 
-  if (LOCAL_MODE) {
-    throw new Error('Eliminazione account non disponibile in modalità locale.');
-  }
-
-  const fb = await loadFirebaseServices();
-  const user = fb.auth.currentUser;
-  if (!user) throw new Error('Sessione non valida.');
-  await fb.deleteUser(user);
+  throw new Error('Eliminazione account non disponibile in modalità locale.');
 }
 
 export function onPasswordRecovery(listener: () => void): () => void {
@@ -421,4 +322,3 @@ export function onPasswordRecovery(listener: () => void): () => void {
 
   return () => data.subscription.unsubscribe();
 }
-

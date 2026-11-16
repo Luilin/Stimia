@@ -17,7 +17,7 @@ import {
 } from './cloudFiles';
 
 /**
- * I prezzari piccoli restano dentro il progetto (IndexedDB/Firestore).
+ * I prezzari piccoli restano dentro il progetto (IndexedDB/Supabase).
  * Quelli grandi (es. prezzari regionali) vengono salvati in IndexedDB e nel
  * progetto resta solo un riferimento leggero.
  */

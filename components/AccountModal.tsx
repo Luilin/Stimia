@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { KeyRound, LogOut, MailCheck, ShieldAlert, Trash2, X, Loader2, HardDrive } from 'lucide-react';
-import { LOCAL_MODE, SUPABASE_MODE } from '../services/mode';
+import { SUPABASE_MODE } from '../services/mode';
 import {
   deleteAccount,
   resendConfirmation,
@@ -133,7 +133,7 @@ export const AccountModal: React.FC<Props> = ({ email, onClose, onSignedOut }) =
             </p>
           )}
 
-          {LOCAL_MODE && !SUPABASE_MODE ? (
+          {!SUPABASE_MODE ? (
             <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
               Modalità locale: l’account è simulato e i dati restano in questo browser.
             </p>

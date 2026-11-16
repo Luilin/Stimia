@@ -14,7 +14,7 @@ import {
 } from './services/priceBooksStorage';
 import { Users, LogIn, Plus, Trash2, FolderOpen, X, Loader2, AlertCircle, HardDrive, Pencil, Download, Upload, Copy, WifiOff, Smartphone, Cloud, UserRound, Search } from 'lucide-react';
 import { AuthUser, onAuthStateChanged, signInWithEmail, signInWithGoogle, signOut, isPasswordRecoveryRedirect, onPasswordRecovery, sendPasswordReset, updatePassword } from './services/auth';
-import { LOCAL_MODE, SUPABASE_MODE } from './services/mode';
+import { SUPABASE_MODE } from './services/mode';
 import { flushSyncQueue } from './services/supabaseProjects';
 import { isGoogleAuthAvailable } from './services/supabase';
 
@@ -26,26 +26,6 @@ const makeProjectId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
     ? crypto.randomUUID()
     : `p_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
-
-async function testConnection() {
-  if (LOCAL_MODE || SUPABASE_MODE) return;
-  try {
-    // Firebase è usato solo in questa modalità: import dinamico per non
-    // scaricarlo quando l'app gira in locale o su Supabase.
-    const [{ db }, { doc, getDocFromServer }] = await Promise.all([
-      import('./services/firebase'),
-      import('firebase/firestore'),
-    ]);
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if(error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("Please check your Firebase configuration.");
-    }
-  }
-}
-if (!LOCAL_MODE && !SUPABASE_MODE) {
-  testConnection();
-}
 
 function findMemberPermission(project: Project, email: string): MemberPermission | undefined {
   if (!email || !project.memberPermissions) return undefined;
@@ -98,7 +78,7 @@ export default function App() {
 
   // Recupero password (link via email) e gestione account.
   const [passwordRecovery, setPasswordRecovery] = useState(
-    () => !LOCAL_MODE && isPasswordRecoveryRedirect(),
+    () => SUPABASE_MODE && isPasswordRecoveryRedirect(),
   );
   const [resetPasswordValue, setResetPasswordValue] = useState('');
   const [resetPasswordConfirm, setResetPasswordConfirm] = useState('');
@@ -608,12 +588,10 @@ export default function App() {
           <p className="mb-5 text-sm text-slate-500">
             {SUPABASE_MODE
               ? 'Accedi ai tuoi computi salvati sul database SQL'
-              : LOCAL_MODE
-                ? 'Modalità locale — i dati restano su questo browser'
-                : 'Accedi ai tuoi computi salvati sul cloud'}
+              : 'Modalità locale — i dati restano su questo browser'}
           </p>
 
-          {LOCAL_MODE && !SUPABASE_MODE && (
+          {!SUPABASE_MODE && (
             <div className="mb-5 flex items-start gap-2 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
               <HardDrive size={16} className="mt-0.5 shrink-0 text-slate-400" />
               <span>
@@ -644,7 +622,7 @@ export default function App() {
             <div>
               <div className="mb-1.5 flex items-center justify-between">
                 <label className="block text-xs font-semibold text-slate-700">Password</label>
-                {!isRegistering && !(LOCAL_MODE && !SUPABASE_MODE) && (
+                {!isRegistering && SUPABASE_MODE && (
                   <button
                     type="button"
                     onClick={() => { setShowForgotModal(true); setForgotSent(false); setForgotError(null); setAuthError(null); }}
@@ -692,7 +670,7 @@ export default function App() {
 
               <div className="space-y-4">
                 <button type="button" disabled={loading} onClick={handleGoogleLogin} className="btn btn-neutral h-11 w-full text-sm">
-                  {LOCAL_MODE && !SUPABASE_MODE ? (
+                  {!SUPABASE_MODE ? (
                     <HardDrive size={18} className="text-slate-500" />
                   ) : (
                     <svg className="h-5 w-5" viewBox="0 0 24 24">
@@ -703,7 +681,7 @@ export default function App() {
                       <path fill="none" d="M1 1h22v22H1z" />
                     </svg>
                   )}
-                  {LOCAL_MODE && !SUPABASE_MODE ? 'Accedi come utente demo' : 'Accedi con Google'}
+                  {!SUPABASE_MODE ? 'Accedi come utente demo' : 'Accedi con Google'}
                 </button>
               </div>
             </>
@@ -808,7 +786,7 @@ export default function App() {
                   <Cloud size={12} /> {isOnline ? 'Cloud SQL' : 'Offline'}
                 </span>
               )}
-              {LOCAL_MODE && !SUPABASE_MODE && (
+              {!SUPABASE_MODE && (
                 <span className="hidden items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600 sm:inline-flex" title="Dati salvati solo in questo browser">
                   <HardDrive size={12} /> Locale
                 </span>

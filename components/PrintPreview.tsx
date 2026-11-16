@@ -10,6 +10,7 @@ import {
   isStandardPrintDocument,
 } from './print/PrintDocuments';
 import { createVectorPdfBlob, downloadVectorPdf } from '../services/vectorPdf';
+import { loadPdfJs } from '../services/pdfjs';
 
 // Robust extraction of useReactToPrint hook
 const getReactToPrintHook = () => {
@@ -258,8 +259,7 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                 const { blob } = await createVectorPdfBlob(buildVectorOptions());
                 if (generation !== pdfRenderGeneration.current) return;
 
-                const pdfjs = await import('pdfjs-dist');
-                pdfjs.GlobalWorkerOptions.workerSrc = `${import.meta.env.BASE_URL}pdf.worker.mjs`;
+                const pdfjs = await loadPdfJs();
                 const pdfDocument = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
                 if (generation !== pdfRenderGeneration.current) return;
 

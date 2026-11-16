@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { PriceBookItem, PriceBook, PriceBookCategory } from '../types';
 import { Search, BookOpen, Tag, Download, Plus, X, Edit2, Trash2, Folder, FolderOpen, ChevronRight, ChevronDown, FileSpreadsheet, ArrowDownAZ, AlertTriangle, CornerDownLeft, FileText, Copy, ArrowRight, Undo, Redo, Palette, Hash, BookUp, Loader2, Upload } from 'lucide-react';
 import { createPriceBookFromXpwe, parseXpwePriceBook } from '../services/xpwe';
+import { loadPdfJs } from '../services/pdfjs';
 // --- MOCK DATA GENERATORS ---
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -1865,8 +1866,7 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
 
       setIsParsingPdf(true);
       try {
-          const pdfjs = await import('pdfjs-dist');
-          pdfjs.GlobalWorkerOptions.workerSrc = `${import.meta.env.BASE_URL}pdf.worker.mjs`;
+          const pdfjs = await loadPdfJs();
           const arrayBuffer = await file.arrayBuffer();
           const loadingTask = pdfjs.getDocument({ data: new Uint8Array(arrayBuffer) });
           const pdf = await loadingTask.promise;

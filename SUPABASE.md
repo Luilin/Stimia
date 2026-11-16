@@ -33,6 +33,8 @@ esistente esegui la migrazione più recente dal **SQL Editor**:
 - [`20261115_security_storage.sql`](supabase/migrations/20261115_security_storage.sql)
   — ruoli RLS, protezione proprietario, tabella allegati, bucket
   `stimia-files` e funzione di eliminazione account.
+- [`20261115_storage_policy_fix.sql`](supabase/migrations/20261115_storage_policy_fix.sql)
+  — correzione delle policy Storage per i percorsi con più livelli.
 
 `supabase/schema.sql` contiene già tutto per le installazioni nuove.
 
@@ -60,8 +62,9 @@ VITE_SUPABASE_URL=https://xxxxxxxxxxxx.supabase.co
 VITE_SUPABASE_ANON_KEY=eyJhbGciOi...
 ```
 
-Poi `npm run dev`. Con queste variabili presenti l'app usa Supabase anche in
-sviluppo (altrimenti resta la modalità locale con IndexedDB).
+Poi esegui `npm run dev:cloud` per usare Supabase in sviluppo. Senza
+`VITE_LOCAL_MODE=false` il dev server resta in modalità locale (IndexedDB), così
+non si toccano i dati cloud durante lo sviluppo.
 
 ## Su GitHub Pages
 

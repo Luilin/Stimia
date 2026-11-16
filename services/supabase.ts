@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SUPABASE_MODE } from './mode';
 
 /**
  * Client Supabase.
@@ -7,15 +8,12 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
  *   VITE_SUPABASE_URL
  *   VITE_SUPABASE_ANON_KEY
  *
- * Senza queste variabili continua a funzionare come prima (IndexedDB locale
- * in sviluppo, Firebase in produzione).
+ * Senza queste variabili l'app usa la modalità locale (IndexedDB).
  */
-const env = (import.meta as any).env || {};
+const env = import.meta.env;
 
 export const SUPABASE_URL: string = (env.VITE_SUPABASE_URL || '').trim();
 export const SUPABASE_ANON_KEY: string = (env.VITE_SUPABASE_ANON_KEY || '').trim();
-
-export const SUPABASE_MODE = Boolean(SUPABASE_URL && SUPABASE_ANON_KEY);
 
 export const supabase: SupabaseClient | null = SUPABASE_MODE
   ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {

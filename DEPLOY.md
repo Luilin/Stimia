@@ -1,101 +1,85 @@
-# Deploy — GitHub + Railway
+# Deploy — GitHub Pages
 
-Questa app è una SPA (Vite + React) senza backend. Su Railway viene servita da
-`server.mjs`, un piccolo server Node che:
-
-- serve la cartella `dist` con i MIME corretti;
-- comprime con gzip i file di testo;
-- imposta cache lunga per gli asset con hash e `no-cache` per `index.html` e `sw.js`;
-- fa il fallback su `index.html` per le rotte dell'app (SPA).
+Stimia è una SPA (Vite + React) senza backend: viene pubblicata come sito
+statico su **GitHub Pages**. I dati e l'autenticazione sono gestiti da
+**Supabase** quando le relative variabili sono configurate, altrimenti l'app
+funziona in **modalità locale** con i dati nel browser.
 
 ---
 
-## 1. Modalità dati: Supabase, locale o Firebase
+## 1. Modalità dati
 
-La modalità si sceglie in fase di **build** con le variabili d'ambiente.
+La modalità si sceglie in fase di **build**.
 
 | Modalità | Comportamento | Cosa serve |
 | --- | --- | --- |
-| **Supabase** (consigliata) | Login reale, dati su Postgres, cache offline | `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` |
-| **Locale** | Login con qualsiasi email, dati in IndexedDB nel browser di chi usa l'app | niente |
-| **Firebase** (legacy) | Login reale, dati su Firestore, condivisione col team | progetto Firebase configurato e dominio autorizzato |
+| **Supabase** (consigliata) | Login reale, dati su Postgres, cache offline e sincronizzazione | `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` |
+| **Locale** | Login simulato, dati in IndexedDB nel browser | niente |
 
-Con `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` presenti la build usa
-**Supabase**. Senza queste variabili `npm run build` usa Firebase;
-`npm run build:local` forza la modalità locale.
+Con le due variabili Supabase presenti la build usa il cloud SQL; senza di esse
+usa automaticamente la modalità locale. Non esistono altre modalità dati.
 
-> Nota: i dati locali, quelli Supabase e quelli Firebase sono archivi separati.
-> Il passaggio da una modalità all'altra non migra i progetti.
+La configurazione Supabase è descritta in **[SUPABASE.md](./SUPABASE.md)**, il
+login Google in **[GOOGLE_LOGIN.md](./GOOGLE_LOGIN.md)**.
 
-### Se scegli Firebase
-
-1. Firebase Console → **Authentication** → *Settings* → **Authorized domains**:
-   aggiungi il dominio Railway (`<progetto>.up.railway.app` e l'eventuale dominio personalizzato).
-2. Verifica che le regole Firestore siano pubblicate (`firestore.rules` nel repo).
-3. Controlla i dati in `firebase-applet-config.json`.
+> I dati locali e quelli Supabase sono archivi separati: cambiare modalità non
+> migra i progetti.
 
 ---
 
-## 2. GitHub
+## 2. Deploy automatico
 
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-```
+Il workflow `.github/workflows/deploy.yml` esegue a ogni push su `main`:
 
-Crea un repository **privato** su GitHub e collegalo:
+1. `npm ci`
+2. `npm run lint` (TypeScript)
+3. `npm test` (Vitest)
+4. `npm run build`
+5. pubblicazione della cartella `dist` su GitHub Pages
 
-```bash
-git remote add origin https://github.com/<utente>/<repo>.git
-git branch -M main
-git push -u origin main
-```
+### Segreti del repository
 
-Oppure, con GitHub CLI:
+In **Settings → Secrets and variables → Actions** aggiungi:
 
-```bash
-gh auth login
-gh repo create <repo> --private --source=. --remote=origin --push
-```
+| Nome | Valore |
+| --- | --- |
+| `VITE_SUPABASE_URL` | URL del progetto Supabase |
+| `VITE_SUPABASE_ANON_KEY` | Chiave publishable/anon |
+
+Se i segreti Supabase non sono presenti, il workflow compila una build in
+modalità locale.
+
+### Base path
+
+Su GitHub Pages il sito vive in `https://<utente>.github.io/<repository>/`.
+Il workflow imposta automaticamente `VITE_BASE_PATH` usando il nome del
+repository. Per un dominio personalizzato o un percorso diverso, crea la
+variabile di repository `VITE_BASE_PATH` (es. `/` per la radice).
 
 ---
 
-## 3. Railway
-
-1. Vai su [railway.app](https://railway.app) e accedi con GitHub.
-2. **New Project → Deploy from GitHub repo** → scegli questo repository.
-3. Railway legge `railway.json`:
-   - build: `npm ci && npm run build`
-   - start: `node server.mjs`
-   - healthcheck: `/`
-4. Aggiungi le variabili del servizio (tab **Variables**):
-   - `VITE_LOCAL_MODE=true` se vuoi la modalità locale.
-5. **Settings → Networking → Generate Domain** per ottenere l'URL pubblico.
-6. Ogni push su `main` rilancia automaticamente il deploy.
-
-### Verifica rapida in locale (come su Railway)
+## 3. Verifica in locale
 
 ```bash
-npm run build:local
-PORT=4173 npm start
-# http://localhost:4173
-```
-
-Su Windows PowerShell:
-
-```powershell
-$env:PORT=4173; npm start
+npm install
+npm run dev              # sviluppo in modalità locale
+npm run dev:cloud        # sviluppo collegato a Supabase (se configurato)
+npm run build            # build di produzione
+npm run preview          # anteprima della build
+npm run build:local      # build forzata in modalità locale
+npm run preview:local    # anteprima della build locale
 ```
 
 ---
 
 ## 4. PWA e aggiornamenti
 
-Il service worker (`public/sw.js`) mette in cache l'app shell. Dopo un deploy:
+Il service worker (`public/sw.js`) mette in cache l'app shell e gli asset con
+hash. Dopo un deploy:
 
-1. il nuovo `index.html` viene preso dalla rete (la navigazione è network-first);
-2. i nuovi asset hanno nomi con hash, quindi non restano versioni vecchie.
+1. il nuovo `index.html` viene preso dalla rete (navigazione network-first);
+2. i nuovi asset hanno nomi con hash, quindi non restano versioni vecchie;
+3. se l'app è installata, compare il banner **“Nuova versione disponibile”**.
 
-Se un utente vede ancora la versione precedente, basta un ricaricamento forzato
-(`Ctrl+Shift+R`) o la chiusura delle schede dell'app.
+Per distribuire modifiche al service worker, incrementa `CACHE_NAME` in
+`public/sw.js`: l'attivazione elimina le cache precedenti.

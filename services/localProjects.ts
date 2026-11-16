@@ -3,7 +3,6 @@ import { getCurrentUser } from './auth';
 import {
   STORE_PROJECTS,
   idbDelete,
-  idbDeleteMany,
   idbGetAll,
   idbPut,
 } from './idb';
@@ -134,14 +133,4 @@ export async function saveProject(project: Project): Promise<void> {
 export async function deleteProject(projectId: string): Promise<void> {
   await ensureReady();
   await idbDelete(STORE_PROJECTS, projectId);
-}
-
-/** Utile per un pulsante "ripristina dati demo" o dalla console del browser. */
-export async function clearLocalProjects(): Promise<void> {
-  await ensureReady();
-  const projects = await idbGetAll<Project>(STORE_PROJECTS);
-  await idbDeleteMany(STORE_PROJECTS, projects.map(project => project.id));
-  if (typeof window !== 'undefined') {
-    window.localStorage.removeItem(LEGACY_PROJECTS_KEY);
-  }
 }
