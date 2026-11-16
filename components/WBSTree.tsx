@@ -396,7 +396,7 @@ export const WBSTree: React.FC<WBSTreeProps> = ({
         
         {/* Main Content with Edit Logic */}
         <div 
-          className="flex-1 min-w-0 pr-24 flex items-center" 
+          className="flex-1 min-w-0 pr-2 lg:pr-24 flex items-center" 
           onDoubleClick={!isEditing ? startEditing : undefined}
         >
           {isEditing ? (
@@ -444,13 +444,13 @@ export const WBSTree: React.FC<WBSTreeProps> = ({
                    }`}>
                  {node.code}
                </span>
-               <span className="truncate mr-1" title={node.name}>{node.name}</span>
+               <span className="min-w-0 flex-1 line-clamp-2 break-words mr-1" title={node.name}>{node.name}</span>
                <span className="text-[10px] text-gray-400 bg-gray-100 px-1.5 rounded-full shrink-0" title={`${node.items.length} voci`}>
                  {node.items.length}
                </span>
                
                {/* Node Total Summary */}
-               <span className={`ml-auto pl-2 text-xs font-mono font-bold ${isSelected ? 'text-accent-700 bg-accent-50/50 border-accent-200' : 'text-gray-600 bg-white/50 border-gray-100'} tabular-nums px-1.5 py-0.5 rounded border shadow-sm`}>
+               <span className={`hidden lg:inline-block ml-auto pl-2 text-xs font-mono font-bold ${isSelected ? 'text-accent-700 bg-accent-50/50 border-accent-200' : 'text-gray-600 bg-white/50 border-gray-100'} tabular-nums px-1.5 py-0.5 rounded border shadow-sm`}>
                  € {nodeTotal.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                </span>
              </>
@@ -507,6 +507,38 @@ export const WBSTree: React.FC<WBSTreeProps> = ({
             </button>
           </div>
         )}
+      </div>
+
+      {/* Azioni categoria: su telefono non c'è hover, quindi restano visibili */}
+      <div className="mb-1 flex flex-wrap items-center gap-1 pl-8 lg:hidden">
+        <button
+          type="button"
+          onClick={handleAddChild}
+          className="flex items-center gap-1 rounded border border-blue-200 bg-blue-50 px-2 py-1 text-[10px] font-semibold text-blue-700"
+        >
+          <Plus size={11} /> Sottocategoria
+        </button>
+        <button
+          type="button"
+          onClick={startEditing}
+          className="flex items-center gap-1 rounded border border-amber-200 bg-amber-50 px-2 py-1 text-[10px] font-semibold text-amber-700"
+        >
+          <Edit2 size={11} /> Rinomina
+        </button>
+        <button
+          type="button"
+          onClick={handleDuplicate}
+          className="flex items-center gap-1 rounded border border-violet-200 bg-violet-50 px-2 py-1 text-[10px] font-semibold text-violet-700"
+        >
+          <Copy size={11} /> Duplica
+        </button>
+        <button
+          type="button"
+          onClick={handleDelete}
+          className="flex items-center gap-1 rounded border border-red-200 bg-red-50 px-2 py-1 text-[10px] font-semibold text-red-700"
+        >
+          <Trash2 size={11} /> Elimina
+        </button>
       </div>
 
       {/* Children */}
