@@ -1896,14 +1896,14 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
               </div>
               
               {/* Items List Header */}
-              <div className="mb-2 flex items-center gap-2 text-[11px] text-slate-400 min-[1400px]:hidden">
+              <div className="mb-2 hidden items-center gap-2 text-[11px] text-slate-400 lg:flex min-[1400px]:hidden">
                 <MoveHorizontal size={13} /> Scorri lateralmente per vedere tutte le colonne
               </div>
               <div className="flex min-h-0 flex-1 flex-col overflow-x-auto overscroll-x-contain">
-              <div className="flex min-h-0 flex-1 min-w-[900px] flex-col min-[1400px]:min-w-0">
+              <div className={`flex min-h-0 flex-1 flex-col ${isMobile ? 'min-w-0' : 'min-w-[900px] min-[1400px]:min-w-0'}`}>
                             {/* VOCI TABLE HEADERS */}
               {isDittaMode ? (
-                <div className="grid grid-cols-[30px_60px_2.5fr_40px_50px_90px_60px_90px_1fr_40px] gap-2 p-2.5 pb-2 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider shrink-0 items-center">
+                <div className="grid max-lg:hidden grid-cols-[30px_60px_2.5fr_40px_50px_90px_60px_90px_1fr_40px] gap-2 p-2.5 pb-2 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider shrink-0 items-center">
                   <div className="text-center">#</div>
                   <div>Codice</div>
                   <div>Descrizione Lavorazione</div>
@@ -1916,7 +1916,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                   <div></div>
                 </div>
               ) : editorMode === 'ESTIMATE' ? (
-                  <div className="grid grid-cols-[45px_60px_90px_2fr_35px_45px_75px_75px_80px_90px_30px] gap-2 p-2.5 pb-2 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider shrink-0 items-center">
+                  <div className="grid max-lg:hidden grid-cols-[45px_60px_90px_2fr_35px_45px_75px_75px_80px_90px_30px] gap-2 p-2.5 pb-2 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider shrink-0 items-center">
                       <div className="text-center">#</div>
                       <div>Codice</div>
                       <div>Rif.</div>
@@ -1931,7 +1931,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                   </div>
               ) : (
                   // SAL Grid Layout
-                  <div className="grid grid-cols-[30px_60px_3fr_40px_70px_60px_70px_80px_60px_80px] gap-4 pb-2 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider shrink-0 pr-2 items-end">
+                  <div className="grid max-lg:hidden grid-cols-[30px_60px_3fr_40px_70px_60px_70px_80px_60px_80px] gap-4 pb-2 border-b border-gray-200 text-xs font-bold text-gray-500 uppercase tracking-wider shrink-0 pr-2 items-end">
                       <div className="text-center">#</div>
                       <div>Codice</div>
                       <div>Descrizione</div>
@@ -2018,6 +2018,312 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
 
                            if (editorMode === 'SAL' && hideCompleted && isCompletedInPrev) {
                                return null;
+                           }
+
+                           // Su telefono ogni voce diventa una scheda verticale:
+                           // niente tabella larga, tutti i campi raggiungibili.
+                           if (isMobile) {
+                               const offerPrice = item.offerPrice ?? '';
+                               const offerDays = item.offerDays ?? '';
+                               const offerNotes = item.offerNotes ?? '';
+                               const offerAmount = (item.qty || 0) * (item.offerPrice || 0);
+
+                               const measurements = item.measurements && item.measurements.length > 0
+                                   ? item.measurements
+                                   : [{ ...item, id: 'default', name: '' } as any];
+
+                               const updateMeasurement = (measurement: any, patch: any) => {
+                                   if (item.measurements) {
+                                       handleUpdateMeasurement(item, measurement.id, patch);
+                                   } else {
+                                       handleUpdateItem({ ...item, ...patch }, { recalcQty: true });
+                                   }
+                               };
+
+                               return (
+                                   <div
+                                       key={item.id}
+                                       data-item-id={item.id}
+                                       className={`rounded-xl border bg-white p-3 shadow-sm ${isSelected ? 'border-emerald-400 ring-2 ring-emerald-200' : 'border-slate-200'}`}
+                                   >
+                                       <div className="flex items-start gap-2">
+                                           <span className="mt-2 w-5 shrink-0 text-center font-mono text-[10px] text-slate-400">{index + 1}</span>
+                                           <div className="min-w-0 flex-1">
+                                               <input
+                                                   type="text"
+                                                   value={item.code}
+                                                   onChange={(e) => handleUpdateItem({ ...item, code: e.target.value })}
+                                                   readOnly={autoItemCode}
+                                                   placeholder="Codice"
+                                                   className={`w-full border-b border-slate-200 bg-transparent pb-1 font-mono text-sm outline-none focus:border-emerald-500 ${isDuplicate ? 'font-bold text-red-600' : 'text-slate-700'}`}
+                                               />
+                                               {item.sourceCode && (
+                                                   <span className="mt-1 inline-block rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-600" style={refStyle}>
+                                                       {item.sourceCode}
+                                                   </span>
+                                               )}
+                                           </div>
+                                           {editorMode !== 'SAL' && (
+                                               <button
+                                                   type="button"
+                                                   onClick={() => setPriceAnalysisItem(item)}
+                                                   className={`rounded p-1.5 ${item.priceAnalysis ? 'text-emerald-600' : 'text-slate-400'} hover:bg-emerald-50`}
+                                                   title="Analisi prezzo (EPU)"
+                                                   aria-label="Analisi prezzo"
+                                               >
+                                                   <FlaskConical size={16} />
+                                               </button>
+                                           )}
+                                           <button
+                                               type="button"
+                                               onClick={() => handleDeleteItem(item.id)}
+                                               className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600"
+                                               title="Elimina voce"
+                                               aria-label="Elimina voce"
+                                           >
+                                               <Trash2 size={16} />
+                                           </button>
+                                       </div>
+
+                                       <textarea
+                                           rows={2}
+                                           value={item.description}
+                                           onChange={(e) => handleUpdateItem({ ...item, description: e.target.value })}
+                                           placeholder="Descrizione..."
+                                           className="mt-2 w-full resize-none rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-sm leading-snug outline-none focus:border-emerald-500"
+                                       />
+
+                                       {isDittaMode ? (
+                                           <>
+                                               <div className="mt-2 grid grid-cols-2 gap-2">
+                                                   <label className="text-[10px] font-bold uppercase text-slate-500">
+                                                       U.M.
+                                                       <input type="text" value={item.uom} onChange={(e) => handleUpdateItem({ ...item, uom: e.target.value }, { uomChanged: true })} className="field mt-0.5 h-10 text-sm" />
+                                                   </label>
+                                                   <label className="text-[10px] font-bold uppercase text-slate-500">
+                                                       Quantità
+                                                       <input type="number" value={item.qty} onChange={(e) => handleUpdateItem({ ...item, qty: parseFloat(e.target.value) || 0 })} className="field mt-0.5 h-10 text-sm" />
+                                                   </label>
+                                                   <label className="text-[10px] font-bold uppercase text-slate-500">
+                                                       Prezzo offerto €
+                                                       <input
+                                                           type="number"
+                                                           value={offerPrice}
+                                                           placeholder="0,00"
+                                                           onChange={(e) => handleUpdateItem({ ...item, offerPrice: e.target.value === '' ? undefined : parseFloat(e.target.value) })}
+                                                           className="field mt-0.5 h-10 text-sm font-bold text-emerald-800"
+                                                       />
+                                                   </label>
+                                                   <label className="text-[10px] font-bold uppercase text-slate-500">
+                                                       Tempi (gg)
+                                                       <input
+                                                           type="number"
+                                                           value={offerDays}
+                                                           placeholder="gg"
+                                                           onChange={(e) => handleUpdateItem({ ...item, offerDays: e.target.value === '' ? undefined : parseInt(e.target.value, 10) })}
+                                                           className="field mt-0.5 h-10 text-sm"
+                                                       />
+                                                   </label>
+                                               </div>
+                                               <div className="mt-2 flex items-center justify-between rounded-lg bg-emerald-50 px-3 py-2 text-xs">
+                                                   <span className="font-semibold text-emerald-700">Importo offerto</span>
+                                                   <b className="text-sm text-emerald-900">€ {offerAmount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>
+                                               </div>
+                                               <label className="mt-2 block text-[10px] font-bold uppercase text-slate-500">
+                                                   Note / Marca proposta
+                                                   <input type="text" value={offerNotes} onChange={(e) => handleUpdateItem({ ...item, offerNotes: e.target.value })} className="field mt-0.5 h-10 text-sm" placeholder="Note..." />
+                                               </label>
+                                           </>
+                                       ) : editorMode === 'SAL' ? (
+                                           <>
+                                               <div className="mt-2 grid grid-cols-2 gap-2">
+                                                   <div className="rounded-lg bg-slate-50 p-2">
+                                                       <div className="text-[10px] font-bold uppercase text-slate-500">Q.tà residua</div>
+                                                       <div className="text-sm font-semibold text-slate-700">{remainingQty.toLocaleString('it-IT', { maximumFractionDigits: 2 })}</div>
+                                                   </div>
+                                                   <div className="rounded-lg bg-slate-50 p-2">
+                                                       <div className="text-[10px] font-bold uppercase text-slate-500">Prec. ({prevSalInfo.code})</div>
+                                                       <div className="text-sm font-semibold text-slate-600">{prevSalInfo.qty.toLocaleString('it-IT', { maximumFractionDigits: 2 })}</div>
+                                                   </div>
+                                                   <label className="col-span-2 text-[10px] font-bold uppercase text-emerald-700">
+                                                       Q.tà attuale
+                                                       <input
+                                                           type="number"
+                                                           value={salQty || ''}
+                                                           placeholder="0"
+                                                           onChange={(e) => handleUpdateSalQty(item.id, parseFloat(e.target.value) || 0, item.qty)}
+                                                           disabled={!activeSalId || isSalClosed || (isCompletedInPrev && !preventOver100)}
+                                                           className={`field mt-0.5 h-10 text-base font-bold ${salQty > remainingQty && preventOver100 ? 'border-red-300 bg-red-50 text-red-700' : 'text-emerald-800'}`}
+                                                       />
+                                                   </label>
+                                               </div>
+                                               <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                                                   <div className="rounded-lg bg-slate-50 p-2 text-center">
+                                                       <div className="text-[10px] uppercase text-slate-500">Avanzamento</div>
+                                                       <b className={progressPercent > 100 ? 'text-red-600' : 'text-slate-700'}>{progressPercent.toFixed(0)}%</b>
+                                                   </div>
+                                                   <div className="rounded-lg bg-emerald-50 p-2 text-right">
+                                                       <div className="text-[10px] uppercase text-emerald-600">Importo SAL</div>
+                                                       <b className="text-emerald-900">€ {salAmount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>
+                                                   </div>
+                                               </div>
+                                           </>
+                                       ) : (
+                                           <>
+                                               <div className="mt-2 grid grid-cols-2 gap-2">
+                                                   <label className="text-[10px] font-bold uppercase text-slate-500">
+                                                       U.M.
+                                                       <input type="text" value={item.uom} onChange={(e) => handleUpdateItem({ ...item, uom: e.target.value }, { uomChanged: true })} list="uoms" className="field mt-0.5 h-10 text-sm" />
+                                                   </label>
+                                                   <div className="rounded-lg bg-slate-50 p-2">
+                                                       <div className="text-[10px] font-bold uppercase text-slate-500">Quantità</div>
+                                                       <div className="text-sm font-semibold text-slate-700">{Number(item.qty).toLocaleString('it-IT', { maximumFractionDigits: 2 })}</div>
+                                                   </div>
+                                                   <label className="text-[10px] font-bold uppercase text-slate-500">
+                                                       Materiale €
+                                                       <input
+                                                           type="number"
+                                                           value={item.materialPrice ?? ''}
+                                                           placeholder="0,00"
+                                                           onChange={(e) => {
+                                                               const material = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                               handleUpdateItem({ ...item, materialPrice: material, price: (material || 0) + (item.laborPrice || 0) }, { recalcQty: false });
+                                                           }}
+                                                           className="field mt-0.5 h-10 text-sm"
+                                                       />
+                                                   </label>
+                                                   <label className="text-[10px] font-bold uppercase text-slate-500">
+                                                       Manodopera €
+                                                       <input
+                                                           type="number"
+                                                           value={item.laborPrice ?? ''}
+                                                           placeholder="0,00"
+                                                           onChange={(e) => {
+                                                               const labor = e.target.value === '' ? undefined : parseFloat(e.target.value);
+                                                               handleUpdateItem({ ...item, laborPrice: labor, price: (item.materialPrice || 0) + (labor || 0) }, { recalcQty: false });
+                                                           }}
+                                                           className="field mt-0.5 h-10 text-sm"
+                                                       />
+                                                   </label>
+                                                   <label className="text-[10px] font-bold uppercase text-slate-500">
+                                                       Prezzo unitario €
+                                                       <input
+                                                           type="number"
+                                                           value={item.price}
+                                                           onChange={(e) => handleUpdateItem({ ...item, price: parseFloat(e.target.value) || 0 }, { recalcQty: false })}
+                                                           className="field mt-0.5 h-10 text-sm font-bold"
+                                                       />
+                                                   </label>
+                                                   <div className="rounded-lg bg-emerald-50 p-2 text-right">
+                                                       <div className="text-[10px] font-bold uppercase text-emerald-600">Importo</div>
+                                                       <b className="text-sm text-emerald-900">€ {item.amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>
+                                                   </div>
+                                               </div>
+
+                                               <details className="mt-2 rounded-lg border border-slate-200 bg-slate-50">
+                                                   <summary className="cursor-pointer px-3 py-2 text-xs font-bold text-slate-600">
+                                                       Misure e quantità
+                                                   </summary>
+                                                   <div className="space-y-2 border-t border-slate-200 p-2">
+                                                       <div className="flex flex-wrap gap-1">
+                                                           {([
+                                                               ['length', 'Lunghezza'],
+                                                               ['area', 'Larghezza/Area'],
+                                                               ['height', 'Altezza'],
+                                                               ['weight', 'Peso/Spec.'],
+                                                           ] as const).map(([dimension, label]) => (
+                                                               <button
+                                                                   key={dimension}
+                                                                   type="button"
+                                                                   onClick={() => toggleDimension(item, dimension)}
+                                                                   className={`rounded border px-2 py-1 text-[10px] font-semibold ${item.activeDimensions[dimension] ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : 'border-slate-200 bg-white text-slate-500'}`}
+                                                               >
+                                                                   {label}
+                                                               </button>
+                                                           ))}
+                                                       </div>
+
+                                                       {measurements.map((measurement: any, measurementIndex: number) => (
+                                                           <div key={measurement.id} className="rounded-lg border border-slate-200 bg-white p-2">
+                                                               <div className="flex items-center gap-2">
+                                                                   <input
+                                                                       type="text"
+                                                                       value={measurement.name || ''}
+                                                                       onChange={(e) => {
+                                                                           if (item.measurements) {
+                                                                               handleUpdateMeasurement(item, measurement.id, { name: e.target.value });
+                                                                           } else {
+                                                                               const withMeasurements = ensureMeasurements(item);
+                                                                               withMeasurements.measurements[0].name = e.target.value;
+                                                                               handleUpdateItem(withMeasurements, { recalcQty: true });
+                                                                           }
+                                                                       }}
+                                                                       placeholder={`Misura ${measurementIndex + 1}`}
+                                                                       className="field h-9 flex-1 text-xs"
+                                                                   />
+                                                                   {item.measurements && item.measurements.length > 1 && (
+                                                                       <button type="button" onClick={() => handleRemoveMeasurement(item, measurement.id)} className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" aria-label="Rimuovi misura">
+                                                                           <X size={14} />
+                                                                       </button>
+                                                                   )}
+                                                               </div>
+                                                               <div className="mt-2 grid grid-cols-2 gap-2">
+                                                                   <label className="text-[10px] font-bold uppercase text-slate-500">
+                                                                       P.U.
+                                                                       <input type="number" value={measurement.factor} onChange={(e) => updateMeasurement(measurement, { factor: parseFloat(e.target.value) || 0 })} className="field mt-0.5 h-9 text-xs" />
+                                                                   </label>
+                                                                   {item.activeDimensions.length && (
+                                                                       <label className="text-[10px] font-bold uppercase text-slate-500">
+                                                                           L (m)
+                                                                           <input type="number" value={measurement.length ?? ''} onChange={(e) => updateMeasurement(measurement, { length: parseFloat(e.target.value) || 0 })} className="field mt-0.5 h-9 text-xs" />
+                                                                       </label>
+                                                                   )}
+                                                                   {item.activeDimensions.area && (
+                                                                       <label className="text-[10px] font-bold uppercase text-slate-500">
+                                                                           Area (m²)
+                                                                           <input type="number" value={measurement.area ?? ''} onChange={(e) => updateMeasurement(measurement, { area: parseFloat(e.target.value) || 0 })} className="field mt-0.5 h-9 text-xs" />
+                                                                       </label>
+                                                                   )}
+                                                                   {item.activeDimensions.height && (
+                                                                       <label className="text-[10px] font-bold uppercase text-slate-500">
+                                                                           H (m)
+                                                                           <input type="number" value={measurement.height ?? ''} onChange={(e) => updateMeasurement(measurement, { height: parseFloat(e.target.value) || 0 })} className="field mt-0.5 h-9 text-xs" />
+                                                                       </label>
+                                                                   )}
+                                                                   {item.activeDimensions.weight && (
+                                                                       <label className="text-[10px] font-bold uppercase text-slate-500">
+                                                                           Peso/Spec.
+                                                                           <input type="number" value={measurement.weight ?? ''} onChange={(e) => updateMeasurement(measurement, { weight: parseFloat(e.target.value) || 0 })} className="field mt-0.5 h-9 text-xs" />
+                                                                       </label>
+                                                                   )}
+                                                               </div>
+                                                               <div className="mt-1 text-right text-[11px] text-slate-500">
+                                                                   Parziale: <b className="text-slate-800">{calculateMeasurementQty(item, measurement).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>
+                                                               </div>
+                                                           </div>
+                                                       ))}
+
+                                                       <button type="button" onClick={() => handleAddMeasurement(item)} className="flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                                                           <Plus size={12} /> Aggiungi riga di misura
+                                                       </button>
+                                                   </div>
+                                               </details>
+                                           </>
+                                       )}
+
+                                       <div className="mt-2 flex items-center justify-end gap-1 border-t border-slate-100 pt-2">
+                                           <button type="button" onClick={() => handleMoveItemDirect(index, 'up')} disabled={index === 0} className="rounded p-2 text-slate-400 hover:bg-slate-100 disabled:opacity-30" title="Sposta su" aria-label="Sposta su">
+                                               <ChevronUp size={16} />
+                                           </button>
+                                           <button type="button" onClick={() => handleMoveItemDirect(index, 'down')} disabled={index >= (selectedNode?.items.length || 0) - 1} className="rounded p-2 text-slate-400 hover:bg-slate-100 disabled:opacity-30" title="Sposta giù" aria-label="Sposta giù">
+                                               <ChevronDown size={16} />
+                                           </button>
+                                           <button type="button" onClick={() => handleMoveToEnd(item.id)} className="rounded p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600" title="Sposta in fondo" aria-label="Sposta in fondo">
+                                               <AlignEndVertical size={16} />
+                                           </button>
+                                       </div>
+                                   </div>
+                               );
                            }
 
                                                        if (isDittaMode) {
