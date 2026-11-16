@@ -1695,7 +1695,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                )}
                {isReadOnly && <span className="shrink-0 rounded-full border border-amber-200 bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">Sola Lettura</span>}
             </div>
-            <div className="flex items-center gap-2 truncate text-[11px] text-slate-500">
+            <div className="hidden items-center gap-2 truncate text-[11px] text-slate-500 sm:flex">
               <span className="truncate">Utente: {currentUser}</span>
               {!isReadOnly && saving && <span className="flex shrink-0 items-center gap-1 text-emerald-600"><Save size={10} /> Salvataggio...</span>}
             </div>
@@ -1833,21 +1833,21 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
         <div className="flex-1 flex flex-col overflow-hidden bg-white">
           {selectedNode ? (
             <div className="flex-1 flex flex-col p-3 sm:p-6 lg:p-8 overflow-hidden">
-              <div className="mb-5 pb-5 border-b border-slate-200 shrink-0">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:gap-4">
-                  <div className="flex-1">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Codice WBS</label>
-                    <input type="text" value={selectedNode.code} placeholder="Codice" onChange={(e) => handleUpdateNode({...selectedNode, code: e.target.value})} className="w-full border-b border-slate-300 text-lg font-mono font-bold text-slate-900 outline-none focus:border-emerald-500 sm:text-2xl"/>
+              <div className="mb-2 shrink-0 border-b border-slate-200 pb-2 lg:mb-5 lg:pb-5">
+                <div className="flex items-end gap-2 sm:gap-4">
+                  <div className="w-20 shrink-0 sm:w-auto sm:flex-1">
+                    <label className="mb-1 hidden text-[11px] font-bold uppercase text-slate-500 lg:block">Codice WBS</label>
+                    <input type="text" value={selectedNode.code} placeholder="Codice" onChange={(e) => handleUpdateNode({...selectedNode, code: e.target.value})} className="w-full border-b border-slate-300 text-base font-mono font-bold text-slate-900 outline-none focus:border-emerald-500 lg:text-2xl"/>
                   </div>
-                  <div className="flex-[3]">
-                    <label className="block text-[11px] font-bold text-slate-500 uppercase mb-1">Categoria</label>
-                    <input type="text" value={selectedNode.name} onChange={(e) => handleUpdateNode({...selectedNode, name: e.target.value})} className="w-full border-b border-slate-300 text-lg font-bold text-slate-900 outline-none focus:border-emerald-500 sm:text-2xl"/>
+                  <div className="min-w-0 flex-1 sm:flex-[3]">
+                    <label className="mb-1 hidden text-[11px] font-bold uppercase text-slate-500 lg:block">Categoria</label>
+                    <input type="text" value={selectedNode.name} placeholder="Categoria" onChange={(e) => handleUpdateNode({...selectedNode, name: e.target.value})} className="w-full border-b border-slate-300 text-base font-bold text-slate-900 outline-none focus:border-emerald-500 lg:text-2xl"/>
                   </div>
                 </div>
               </div>
 
-              <div className="mb-4 flex shrink-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-                  <h3 className="flex shrink-0 items-center gap-2 whitespace-nowrap text-base font-bold text-slate-700"><List size={18}/> Voci di Costo ({selectedNode.items.length})</h3>
+              <div className="mb-2 flex shrink-0 flex-col gap-2 lg:mb-4 lg:gap-3 xl:flex-row xl:items-center xl:justify-between">
+                  <h3 className="hidden shrink-0 items-center gap-2 whitespace-nowrap text-base font-bold text-slate-700 lg:flex"><List size={18}/> Voci di Costo ({selectedNode.items.length})</h3>
                   <div className="flex flex-wrap items-center gap-2">
                     {isDittaMode && (
                       <button 
@@ -1861,7 +1861,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                          <>
                              <button 
                                  onClick={() => setHideCompleted(!hideCompleted)}
-                                 className={`btn ${hideCompleted ? '!border-slate-300 !bg-slate-100 !text-slate-700' : 'btn-neutral'}`}
+                                 className={`btn hidden sm:inline-flex ${hideCompleted ? '!border-slate-300 !bg-slate-100 !text-slate-700' : 'btn-neutral'}`}
                                  title={hideCompleted ? "Mostra voci completate nei SAL precedenti" : "Nascondi voci già completate"}
                              >
                                  {hideCompleted ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -1869,7 +1869,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                              </button>
                              <button 
                                  onClick={() => setPreventOver100(!preventOver100)}
-                                 className={`btn ${preventOver100 ? '!border-emerald-200 !bg-emerald-50 !text-emerald-700' : 'btn-neutral'}`}
+                                 className={`btn hidden sm:inline-flex ${preventOver100 ? '!border-emerald-200 !bg-emerald-50 !text-emerald-700' : 'btn-neutral'}`}
                                  title={preventOver100 ? "Blocco al 100% Attivo (Cumulativo)" : "Blocco al 100% Disattivato"}
                              >
                                  {preventOver100 ? <ShieldCheck size={16} /> : <Shield size={16} />}
@@ -1877,21 +1877,21 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                              </button>
                          </>
                      )}
-                     <div className="relative">
+                     <div className="relative min-w-0 flex-1 lg:flex-none">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" size={14} />
                         <input 
                           type="text" 
                           placeholder="Filtra voci..." 
-                          className="w-full rounded-full border border-slate-300 bg-white py-1.5 pl-8 pr-3 text-xs outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 sm:w-48"
+                          className="w-full rounded-full border border-slate-300 bg-white py-1.5 pl-8 pr-3 text-xs outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 lg:w-48"
                           value={filterText}
                           onChange={(e) => setFilterText(e.target.value)}
                         />
                      </div>
-                     <button onClick={() => setAutoItemCode(!autoItemCode)} className={`p-1.5 rounded border transition-colors ${autoItemCode ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`} title={autoItemCode ? "Codici Automatici" : "Codici Manuali"}>
+                     <button onClick={() => setAutoItemCode(!autoItemCode)} className={`hidden sm:inline-flex p-1.5 rounded border transition-colors ${autoItemCode ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`} title={autoItemCode ? "Codici Automatici" : "Codici Manuali"}>
                          {autoItemCode ? <Hash size={16} /> : <Hash size={16} className="opacity-50" />}
                      </button>
-                     <button onClick={handleSortItems} className="btn btn-neutral btn-icon" title="Riordina Voci"><ArrowDownAZ size={16} /></button>
-                     <button onClick={handleAddItem} className="btn btn-primary"><Plus size={16} /> <span className="hidden sm:inline">Nuova Voce</span><span className="sm:hidden">Voce</span></button>
+                     <button onClick={handleSortItems} className="btn btn-neutral btn-icon" title="Riordina Voci" aria-label="Riordina voci"><ArrowDownAZ size={16} /></button>
+                     <button onClick={handleAddItem} className="btn btn-primary hidden sm:inline-flex"><Plus size={16} /> <span className="hidden sm:inline">Nuova Voce</span><span className="sm:hidden">Voce</span></button>
                   </div>
               </div>
               
@@ -2870,13 +2870,13 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                     </div>
                   )}
                   {/* Total Footer Sticky */}
-                  <div className="sticky bottom-0 bg-white border-t p-4 mt-4 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex justify-between items-center z-10">
+                  <div className="z-10 mt-2 flex items-center justify-between gap-3 border-t bg-white p-2 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] lg:sticky lg:bottom-0 lg:mt-4 lg:p-4">
                       <div className="flex flex-col">
-                          <div className="text-sm text-gray-500">
+                          <div className="text-xs text-gray-500 lg:text-sm">
                               {editorMode === 'SAL' ? `Totale Categoria (SAL: ${activeSal?.name || '-'})` : `Totale Categoria (${selectedNode.items.length} voci)`}
                           </div>
                           {editorMode === 'SAL' && (
-                              <div className="text-xs text-emerald-600 font-bold">
+                              <div className="hidden text-xs text-emerald-600 font-bold sm:block">
                                   {(() => {
                                       const catEstimateTotal = selectedNode.items.reduce((acc, i) => acc + i.amount, 0);
                                       const catSalTotal = selectedNode.items.reduce((acc, i) => acc + (getSalQty(i.id) * i.price), 0);
@@ -2886,7 +2886,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                               </div>
                           )}
                       </div>
-                      <div className={`text-xl font-bold ${editorMode === 'SAL' ? 'text-emerald-700' : 'text-accent-700'}`}>
+                      <div className={`text-base font-bold lg:text-xl ${editorMode === 'SAL' ? 'text-emerald-700' : 'text-accent-700'}`}>
                           € {selectedNode.items.reduce((acc, i) => {
                               if (isDittaMode) {
                                   return acc + ((i.qty || 0) * (i.offerPrice || 0));
