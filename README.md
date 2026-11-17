@@ -11,7 +11,7 @@ Il sito pubblicato è una SPA statica su **GitHub Pages**:
 
 ## Requisiti
 
-- [Node.js](https://nodejs.org/) 20 o superiore (consigliata la versione LTS)
+- [Node.js](https://nodejs.org/) 22.13 o superiore (consigliata la versione LTS 24)
 - npm (incluso in Node.js)
 
 ```bash
@@ -150,6 +150,10 @@ location.reload();
   funziona offline.
 - Le librerie pesanti (`xlsx`, `pdf.js`, `pdf-lib`, `pdfmake`) vengono caricate
   solo quando servono.
+- `xlsx` è installato dal pacchetto ufficiale SheetJS 0.20.3 su CDN: il registro
+  npm non riceve le versioni con le correzioni di sicurezza. `npm install` e
+  `npm ci` richiedono accesso a `cdn.sheetjs.com`.
+- `pdfjs-dist` 6.x richiede Node.js 22.13 o superiore per la build.
 - L'editor salva automaticamente il progetto circa un secondo dopo ogni modifica,
   accoda i salvataggi per progetto e salva anche alla chiusura della scheda.
 - In modalità Supabase si scaricano solo i payload dei progetti nuovi o cambiati

@@ -11,7 +11,7 @@ import {
 } from './print/PrintDocuments';
 import { createVectorPdfBlob, downloadVectorPdf } from '../services/vectorPdf';
 import { loadPdfJs } from '../services/pdfjs';
-import type { PDFDocumentProxy } from 'pdfjs-dist';
+import type { PDFDocumentLoadingTask, PDFDocumentProxy } from 'pdfjs-dist';
 
 // Robust extraction of useReactToPrint hook
 const getReactToPrintHook = () => {
@@ -257,12 +257,14 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
             setPdfPagesLoading(true);
             setPdfPagesError(null);
             let pdfDocument: PDFDocumentProxy | null = null;
+            let loadingTask: PDFDocumentLoadingTask | null = null;
             try {
                 const { blob } = await createVectorPdfBlob(buildVectorOptions());
                 if (generation !== pdfRenderGeneration.current) return;
 
                 const pdfjs = await loadPdfJs();
-                pdfDocument = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
+                loadingTask = pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) });
+                pdfDocument = await loadingTask.promise;
                 if (generation !== pdfRenderGeneration.current) return;
 
                 const container = pdfPagesRef.current;
@@ -286,11 +288,10 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                     canvas.style.width = '100%';
                     canvas.style.height = 'auto';
                     canvas.className = 'w-full rounded-sm bg-white shadow-lg';
-                    const context = canvas.getContext('2d');
-                    if (!context) continue;
+                    if (!canvas.getContext('2d')) continue;
                     // intent 'print' disabilita lo scheduling via requestAnimationFrame:
                     // il rendering procede anche quando la finestra non è in primo piano.
-                    await page.render({ canvas, canvasContext: context, viewport, intent: 'print' }).promise;
+                    await page.render({ canvas, viewport, intent: 'print' }).promise;
                     if (generation !== pdfRenderGeneration.current) return;
 
                     wrapper.appendChild(canvas);
@@ -305,12 +306,18 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                     setPdfPagesError(error instanceof Error ? error.message : 'Impossibile generare l’anteprima.');
                 }
             } finally {
-                if (pdfDocument) {
+                if (loadingTask) {
                     // Libera subito la memoria: l'anteprima rigenera il PDF a ogni modifica.
                     try {
-                        await pdfDocument.destroy();
+                        await loadingTask.destroy();
                     } catch {
                         /* il documento potrebbe essere già stato chiuso */
+                    }
+                } else if (pdfDocument) {
+                    try {
+                        await pdfDocument.cleanup();
+                    } catch {
+                        /* ignora */
                     }
                 }
                 if (generation === pdfRenderGeneration.current) setPdfPagesLoading(false);
