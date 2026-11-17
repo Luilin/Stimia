@@ -11,6 +11,7 @@ import {
 } from './print/PrintDocuments';
 import { createVectorPdfBlob, downloadVectorPdf } from '../services/vectorPdf';
 import { loadPdfJs } from '../services/pdfjs';
+import type { PDFDocumentProxy } from 'pdfjs-dist';
 
 // Robust extraction of useReactToPrint hook
 const getReactToPrintHook = () => {
@@ -255,12 +256,13 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
         const timer = window.setTimeout(async () => {
             setPdfPagesLoading(true);
             setPdfPagesError(null);
+            let pdfDocument: PDFDocumentProxy | null = null;
             try {
                 const { blob } = await createVectorPdfBlob(buildVectorOptions());
                 if (generation !== pdfRenderGeneration.current) return;
 
                 const pdfjs = await loadPdfJs();
-                const pdfDocument = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
+                pdfDocument = await pdfjs.getDocument({ data: new Uint8Array(await blob.arrayBuffer()) }).promise;
                 if (generation !== pdfRenderGeneration.current) return;
 
                 const container = pdfPagesRef.current;
@@ -303,6 +305,14 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                     setPdfPagesError(error instanceof Error ? error.message : 'Impossibile generare l’anteprima.');
                 }
             } finally {
+                if (pdfDocument) {
+                    // Libera subito la memoria: l'anteprima rigenera il PDF a ogni modifica.
+                    try {
+                        await pdfDocument.destroy();
+                    } catch {
+                        /* il documento potrebbe essere già stato chiuso */
+                    }
+                }
                 if (generation === pdfRenderGeneration.current) setPdfPagesLoading(false);
             }
         }, 600);

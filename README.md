@@ -105,8 +105,9 @@ supabase/migrations/          Migrazioni incrementali per progetti esistenti
 ## Dati locali
 
 I progetti sono salvati in **IndexedDB** (database `stimia_files`: store
-`projects`, `priceBooks`, `attachments`, `versions`, `syncQueue`). Al primo
-avvio i dati del vecchio database vengono copiati automaticamente nel nuovo.
+`projects`, `priceBooks`, `attachments`, `versions`, `syncQueue`, `versionMeta`,
+`syncMeta`). Al primo avvio i dati del vecchio database vengono copiati
+automaticamente nel nuovo.
 
 In `localStorage` restano solo sessione e preferenze:
 
@@ -144,11 +145,15 @@ location.reload();
 ## Note tecniche
 
 - Tailwind CSS è compilato localmente tramite PostCSS.
+- TypeScript è in modalità `strict` con i tipi di React (`@types/react`).
 - PDF.js è installato come dipendenza npm e il worker viene servito da Vite:
   funziona offline.
 - Le librerie pesanti (`xlsx`, `pdf.js`, `pdf-lib`, `pdfmake`) vengono caricate
   solo quando servono.
-- L'editor salva automaticamente il progetto circa un secondo dopo ogni modifica.
+- L'editor salva automaticamente il progetto circa un secondo dopo ogni modifica,
+  accoda i salvataggi per progetto e salva anche alla chiusura della scheda.
+- In modalità Supabase si scaricano solo i payload dei progetti nuovi o cambiati
+  (`updated_at`); i metadati delle versioni evitano di rileggere gli snapshot.
 - In modalità Supabase allegati e prezzari grandi vengono sincronizzati nel
   bucket privato `stimia-files`; IndexedDB resta la cache offline.
 

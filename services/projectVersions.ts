@@ -1,5 +1,13 @@
 import { Project, WBSNode } from '../types';
-import { idbDelete, idbDeleteMany, idbGetAllByIndex, idbPut, STORE_VERSIONS } from './idb';
+import {
+  STORE_VERSION_META,
+  STORE_VERSIONS,
+  idbDelete,
+  idbDeleteMany,
+  idbGet,
+  idbGetAllByIndex,
+  idbPut,
+} from './idb';
 
 export interface ProjectVersion {
   id: string;
@@ -13,6 +21,19 @@ export interface ProjectVersion {
     items: number;
     total: number;
   };
+}
+
+/**
+ * Metadati dell'ultima versione, separati dagli snapshot.
+ * Evita di rileggere da IndexedDB tutti i progetti salvati ogni volta che
+ * si controlla se creare uno snapshot automatico.
+ */
+interface VersionMeta {
+  projectId: string;
+  hash: string;
+  createdAt: number;
+  /** Id delle versioni conservate, dalla più recente alla più vecchia. */
+  ids: string[];
 }
 
 const MAX_VERSIONS_PER_PROJECT = 20;
@@ -76,14 +97,27 @@ export async function saveProjectVersion(
   reason = 'Automatica',
   force = false
 ): Promise<ProjectVersion | null> {
-  const versions = await listProjectVersions(project.id);
-  const latest = versions[0];
   const hash = fingerprint(project);
   const now = Date.now();
 
+  let meta = await idbGet<VersionMeta>(STORE_VERSION_META, project.id);
+
+  if (!meta) {
+    // Primo uso dopo l'aggiornamento: ricostruisce i metadati una sola volta
+    // leggendo la cronologia esistente.
+    const versions = await listProjectVersions(project.id);
+    const latest = versions[0];
+    meta = {
+      projectId: project.id,
+      hash: latest?.hash || '',
+      createdAt: latest?.createdAt || 0,
+      ids: versions.map(item => item.id),
+    };
+  }
+
   if (!force) {
-    if (latest && latest.hash === hash) return null;
-    if (latest && now - latest.createdAt < AUTO_SNAPSHOT_INTERVAL_MS) return null;
+    if (meta.hash === hash) return null;
+    if (meta.createdAt && now - meta.createdAt < AUTO_SNAPSHOT_INTERVAL_MS) return null;
   }
 
   const version: ProjectVersion = {
@@ -98,10 +132,19 @@ export async function saveProjectVersion(
 
   await idbPut(STORE_VERSIONS, version);
 
-  const excess = versions.slice(MAX_VERSIONS_PER_PROJECT - 1);
-  if (excess.length > 0) {
-    await idbDeleteMany(STORE_VERSIONS, excess.map(item => item.id));
+  const ids = [version.id, ...meta.ids.filter(id => id !== version.id)]
+    .slice(0, MAX_VERSIONS_PER_PROJECT);
+  const removed = meta.ids.filter(id => !ids.includes(id));
+  if (removed.length > 0) {
+    await idbDeleteMany(STORE_VERSIONS, removed);
   }
+
+  await idbPut<VersionMeta>(STORE_VERSION_META, {
+    projectId: project.id,
+    hash,
+    createdAt: now,
+    ids,
+  });
 
   return version;
 }
@@ -113,8 +156,21 @@ export async function restoreProjectVersion(version: ProjectVersion): Promise<Pr
 export async function deleteProjectVersions(projectId: string): Promise<void> {
   const versions = await listProjectVersions(projectId);
   await idbDeleteMany(STORE_VERSIONS, versions.map(item => item.id));
+  await idbDelete(STORE_VERSION_META, projectId);
 }
 
-export async function deleteProjectVersion(id: string): Promise<void> {
+export async function deleteProjectVersion(projectId: string, id: string): Promise<void> {
   await idbDelete(STORE_VERSIONS, id);
+
+  const meta = await idbGet<VersionMeta>(STORE_VERSION_META, projectId);
+  if (!meta) return;
+
+  const wasLatest = meta.ids[0] === id;
+  await idbPut<VersionMeta>(STORE_VERSION_META, {
+    ...meta,
+    ids: meta.ids.filter(item => item !== id),
+    // Se è stata eliminata la versione più recente, il prossimo salvataggio
+    // deve crearne una nuova invece di confrontarsi con un'impronta sparita.
+    ...(wasLatest ? { hash: '', createdAt: 0 } : {}),
+  });
 }

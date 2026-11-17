@@ -291,7 +291,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
   const handleDeleteVersion = async (version: ProjectVersion) => {
     if (!canEdit) return;
     if (!window.confirm('Eliminare questa versione dalla cronologia?')) return;
-    await deleteProjectVersion(version.id);
+    await deleteProjectVersion(project.id, version.id);
     await loadVersions();
   };
 

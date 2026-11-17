@@ -1826,7 +1826,9 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
   };
 
   const handleSaveItem = () => {
-      let updatedItemInstance: PriceBookItem | null = null;
+      // Oggetto contenitore: gli assegnamenti avvengono dentro updateTree e
+      // TypeScript non li traccia su una semplice variabile locale.
+      const savedItem = { current: null as PriceBookItem | null };
       let oldCode: string | undefined = undefined;
 
       const updateTree = (node: PriceBookCategory): PriceBookCategory => {
@@ -1835,17 +1837,19 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
               if (itemIndex !== -1) {
                   const newItems = [...node.items];
                   oldCode = newItems[itemIndex].code; 
-                  updatedItemInstance = { ...newItems[itemIndex], ...itemFormData } as PriceBookItem;
-                  newItems[itemIndex] = updatedItemInstance;
+                  const updated: PriceBookItem = { ...newItems[itemIndex], ...itemFormData } as PriceBookItem;
+                  savedItem.current = updated;
+                  newItems[itemIndex] = updated;
                   return { ...node, items: newItems };
               }
           } else if (selectedCategoryIds.has(node.id)) {
                if (selectedCategoryIds.size === 1 && selectedCategoryIds.has(node.id)) {
                    if (node.children.length > 0) return node;
-                   updatedItemInstance = {
+                   const created: PriceBookItem = {
                         id: generateId(), code: itemFormData.code || 'NEW', description: itemFormData.description || '', uom: itemFormData.uom || 'cad', price: itemFormData.price || 0
                    };
-                   return { ...node, items: [...node.items, updatedItemInstance] };
+                   savedItem.current = created;
+                   return { ...node, items: [...node.items, created] };
                }
           }
           return { ...node, children: node.children.map(updateTree) };
@@ -1854,8 +1858,9 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
       const updatedBooks = books.map(b => b.id === activeBookId ? { ...b, rootCategory: newRoot } : b);
       updateBooksWrapper(updatedBooks);
       
-      if (updatedItemInstance && onPriceBookItemUpdate) {
-          onPriceBookItemUpdate(activeBookId, updatedItemInstance, oldCode !== updatedItemInstance.code ? oldCode : undefined);
+      const itemToSave = savedItem.current;
+      if (itemToSave && onPriceBookItemUpdate) {
+          onPriceBookItemUpdate(activeBookId, itemToSave, oldCode !== itemToSave.code ? oldCode : undefined);
       }
       setShowItemModal(false);
   };

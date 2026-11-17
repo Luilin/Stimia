@@ -4,13 +4,17 @@
  */
 
 export const APP_DB_NAME = 'stimia_files';
-export const APP_DB_VERSION = 4;
+export const APP_DB_VERSION = 5;
 export const STORE_ATTACHMENTS = 'attachments';
 export const STORE_VERSIONS = 'versions';
 export const STORE_PRICE_BOOKS = 'priceBooks';
 export const STORE_PROJECTS = 'projects';
 /** Coda delle modifiche da inviare a Supabase quando si torna online. */
 export const STORE_SYNC_QUEUE = 'syncQueue';
+/** Impronta dell'ultima versione salvata, per evitare di rileggere gli snapshot. */
+export const STORE_VERSION_META = 'versionMeta';
+/** Ultimo `updated_at` remoto visto, per sincronizzare solo i progetti cambiati. */
+export const STORE_SYNC_META = 'syncMeta';
 
 /** Nome usato prima del rebrand: serve solo per migrare i dati esistenti. */
 const LEGACY_DB_NAME = 'edilestimator_files';
@@ -45,6 +49,14 @@ function applySchema(db: IDBDatabase) {
   if (!db.objectStoreNames.contains(STORE_SYNC_QUEUE)) {
     db.createObjectStore(STORE_SYNC_QUEUE, { keyPath: 'projectId' });
   }
+
+  if (!db.objectStoreNames.contains(STORE_VERSION_META)) {
+    db.createObjectStore(STORE_VERSION_META, { keyPath: 'projectId' });
+  }
+
+  if (!db.objectStoreNames.contains(STORE_SYNC_META)) {
+    db.createObjectStore(STORE_SYNC_META, { keyPath: 'projectId' });
+  }
 }
 
 function openDatabase(name: string, version?: number): Promise<IDBDatabase> {
@@ -52,7 +64,13 @@ function openDatabase(name: string, version?: number): Promise<IDBDatabase> {
     const request = version === undefined ? indexedDB.open(name) : indexedDB.open(name, version);
 
     request.onupgradeneeded = () => applySchema(request.result);
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      const db = request.result;
+      // Se un'altra scheda aggiorna lo schema, rilascia la connessione invece
+      // di bloccare l'upgrade a tempo indeterminato.
+      db.onversionchange = () => db.close();
+      resolve(db);
+    };
     request.onerror = () => reject(request.error || new Error('Impossibile aprire il database locale.'));
     request.onblocked = () => reject(new Error('Database locale bloccato da un’altra scheda.'));
   });

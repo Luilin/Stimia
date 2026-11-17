@@ -309,6 +309,30 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
     return () => clearTimeout(timer);
   }, [project, isReadOnly]);
 
+  // Salvataggio finale quando la scheda viene chiusa/nascosta o si esce
+  // dall'editor: evita di perdere l'ultima modifica rimasta nel debounce.
+  useEffect(() => {
+    if (isReadOnly) return;
+
+    const flush = () => {
+      saveProject(projectRef.current).catch(err => {
+        console.warn('Salvataggio finale non riuscito:', err);
+      });
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+
+    window.addEventListener('pagehide', flush);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.removeEventListener('pagehide', flush);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      flush();
+    };
+  }, [isReadOnly]);
+
   // Snapshot automatico della cronologia versioni (throttle nel servizio).
   useEffect(() => {
     if (isReadOnly) return;
@@ -1198,7 +1222,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
     handleUpdateNode({ ...selectedNode, items: updatedItems });
   };
 
-  const ensureMeasurements = (item: CostItem): CostItem => {
+  const ensureMeasurements = (item: CostItem): CostItem & { measurements: NonNullable<CostItem['measurements']> } => {
       if (!item.measurements || item.measurements.length === 0) {
           return {
               ...item,
@@ -1214,7 +1238,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
               }]
           };
       }
-      return item;
+      return { ...item, measurements: item.measurements };
   };
 
   const handleAddMeasurement = (item: CostItem) => {
