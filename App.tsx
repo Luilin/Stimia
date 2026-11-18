@@ -573,16 +573,13 @@ export default function App() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-slate-100 via-slate-50 to-emerald-50 p-4 sm:p-6">
         <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl shadow-slate-200/60 sm:p-8">
-          <div className="mb-6 flex items-center gap-3">
+          <div className="mb-6">
             <img
-              src={`${import.meta.env.BASE_URL}brand/stimia-badge.png`}
+              src={`${import.meta.env.BASE_URL}brand/stimia-lockup.png`}
               alt="Stimia"
-              className="h-12 w-12 shrink-0 rounded-xl shadow-sm"
+              className="h-12 w-auto"
             />
-            <div className="min-w-0">
-              <h1 className="text-xl font-bold tracking-tight text-slate-900">Stimia</h1>
-              <p className="text-xs text-slate-500">Computi metrici e contabilità lavori</p>
-            </div>
+            <p className="mt-2 text-xs text-slate-500">Computi metrici e contabilità lavori</p>
           </div>
 
           <p className="mb-5 text-sm text-slate-500">

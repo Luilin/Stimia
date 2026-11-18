@@ -154,6 +154,9 @@ location.reload();
   npm non riceve le versioni con le correzioni di sicurezza. `npm install` e
   `npm ci` richiedono accesso a `cdn.sheetjs.com`.
 - `pdfjs-dist` 6.x richiede Node.js 22.13 o superiore per la build.
+- Logo: `public/brand/stimia-lockup.png` (simbolo + wordmark) per login e
+  intestazioni, `public/brand/stimia-badge.png` per header e interfaccia; le
+  icone PWA hanno varianti `maskable` dedicate.
 - L'editor salva automaticamente il progetto circa un secondo dopo ogni modifica,
   accoda i salvataggi per progetto e salva anche alla chiusura della scheda.
 - In modalità Supabase si scaricano solo i payload dei progetti nuovi o cambiati

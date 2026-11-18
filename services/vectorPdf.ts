@@ -303,53 +303,68 @@ const offerStats = (project: Project) => {
   return { stats, excluded: all.length - stats.length, baseTotal };
 };
 
-/** Logo dell'app (PNG) convertito in data URL per pdfmake. */
+/** Logo dell'app (PNG) convertiti in data URL per pdfmake. */
 let brandBadgeDataUrl: string | null = null;
-let brandBadgePromise: Promise<void> | null = null;
+let brandLockupDataUrl: string | null = null;
+let brandAssetsPromise: Promise<void> | null = null;
 
-const ensureBrandBadge = async (): Promise<void> => {
-  if (brandBadgeDataUrl) return;
-  if (brandBadgePromise) return brandBadgePromise;
+const blobToDataUrl = (blob: Blob): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
 
-  brandBadgePromise = (async () => {
-    try {
-      const base = import.meta.env.BASE_URL || '/';
-      const response = await fetch(`${base}brand/stimia-badge.png`);
-      if (!response.ok) return;
-      const blob = await response.blob();
-      brandBadgeDataUrl = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(String(reader.result));
-        reader.onerror = () => reject(reader.error);
-        reader.readAsDataURL(blob);
-      });
-    } catch (error) {
-      console.warn('Logo non disponibile per il PDF:', error);
-    }
-  })();
-
-  return brandBadgePromise;
+const loadBrandAsset = async (fileName: string): Promise<string | null> => {
+  try {
+    const base = import.meta.env.BASE_URL || '/';
+    const response = await fetch(`${base}brand/${fileName}`);
+    if (!response.ok) return null;
+    return await blobToDataUrl(await response.blob());
+  } catch (error) {
+    console.warn(`Logo ${fileName} non disponibile per il PDF:`, error);
+    return null;
+  }
 };
 
-const headerContent = (options: VectorPdfOptions, badge: string | null = brandBadgeDataUrl) => {
+const ensureBrandAssets = async (): Promise<void> => {
+  if (brandBadgeDataUrl && brandLockupDataUrl) return;
+  if (brandAssetsPromise) return brandAssetsPromise;
+
+  brandAssetsPromise = (async () => {
+    const [badge, lockup] = await Promise.all([
+      loadBrandAsset('stimia-badge.png'),
+      loadBrandAsset('stimia-lockup.png'),
+    ]);
+    brandBadgeDataUrl = badge;
+    brandLockupDataUrl = lockup;
+  })();
+
+  return brandAssetsPromise;
+};
+
+const headerContent = (options: VectorPdfOptions) => {
   const s = resolveStyles(options);
   const isDefaultTitle = s.appTitle.trim().toLowerCase() === 'stimia';
 
-  const titleNode = badge && isDefaultTitle
-    ? {
-        columns: [
-          { width: 34, stack: [{ image: 'brandBadge', width: 34 }] },
-          {
-            width: '*',
-            text: s.appTitle,
-            bold: true,
-            fontSize: pxToPt(s.sizes.title),
-            color: s.colors.title,
-            margin: [8, 5, 0, 0],
-          },
-        ],
-      }
-    : { text: s.appTitle, bold: true, fontSize: pxToPt(s.sizes.title), color: s.colors.title };
+  const titleNode = isDefaultTitle && brandLockupDataUrl
+    ? { image: 'brandLockup', height: 28 }
+    : isDefaultTitle && brandBadgeDataUrl
+      ? {
+          columns: [
+            { width: 30, stack: [{ image: 'brandBadge', width: 30 }] },
+            {
+              width: '*',
+              text: s.appTitle,
+              bold: true,
+              fontSize: pxToPt(s.sizes.title),
+              color: s.colors.title,
+              margin: [8, 2, 0, 0],
+            },
+          ],
+        }
+      : { text: s.appTitle, bold: true, fontSize: pxToPt(s.sizes.title), color: s.colors.title };
 
   return {
     stack: [
@@ -1105,12 +1120,17 @@ export async function createVectorPdfBlob(options: VectorPdfOptions): Promise<Ge
   const pageNumberColor = options.pageNumberColor || '#475569';
   const pageNumberSize = options.pageNumberSize ? pxToPt(options.pageNumberSize) : 6.75;
   const styles = resolveStyles(options);
-  await ensureBrandBadge();
+  await ensureBrandAssets();
+
+  const brandImages = {
+    ...(brandBadgeDataUrl ? { brandBadge: brandBadgeDataUrl } : {}),
+    ...(brandLockupDataUrl ? { brandLockup: brandLockupDataUrl } : {}),
+  };
 
   const docDefinition: any = {
     pageSize: 'A4',
     pageMargins: [mm(15), mm(16), mm(15), mm(18)],
-    ...(brandBadgeDataUrl ? { images: { brandBadge: brandBadgeDataUrl } } : {}),
+    ...(Object.keys(brandImages).length > 0 ? { images: brandImages } : {}),
     defaultStyle: {
       font: 'Roboto',
       fontSize: pxToPt(styles.sizes.body),
