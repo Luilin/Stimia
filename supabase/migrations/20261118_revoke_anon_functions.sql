@@ -9,6 +9,6 @@
 -- era già stata applicata prima di questo aggiornamento. È idempotente.
 -- ============================================================
 
-revoke all on function public.is_project_writer(text) from anon;
-revoke all on function public.is_project_price_book_editor(text) from anon;
-revoke all on function public.save_project_parts(text, jsonb, jsonb) from anon;
+revoke all on function public.is_project_writer(text) from public, anon;
+revoke all on function public.is_project_price_book_editor(text) from public, anon;
+revoke all on function public.save_project_parts(text, jsonb, jsonb) from public, anon;
