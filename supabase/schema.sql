@@ -443,6 +443,8 @@ $$;
 
 revoke all on function public.is_project_writer(text) from public;
 revoke all on function public.is_project_price_book_editor(text) from public;
+revoke all on function public.is_project_writer(text) from anon;
+revoke all on function public.is_project_price_book_editor(text) from anon;
 grant execute on function public.is_project_writer(text) to authenticated;
 grant execute on function public.is_project_price_book_editor(text) to authenticated;
 
@@ -554,6 +556,7 @@ end;
 $$;
 
 revoke all on function public.save_project_parts(text, jsonb, jsonb) from public;
+revoke all on function public.save_project_parts(text, jsonb, jsonb) from anon;
 grant execute on function public.save_project_parts(text, jsonb, jsonb) to authenticated;
 
 -- ------------------------------------------------------------

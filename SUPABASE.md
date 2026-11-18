@@ -40,6 +40,10 @@ esistente esegui la migrazione più recente dal **SQL Editor**:
   `can_edit_price_books`, RPC `save_project_parts` per SAL/prezzari e policy
   aggiornate. Il client funziona anche prima di applicarla (fallback
   compatibile); dopo l'esecuzione i permessi parziali sono applicati dal DB.
+- [`20261118_revoke_anon_functions.sql`](supabase/migrations/20261118_revoke_anon_functions.sql)
+  — revoca `EXECUTE` al ruolo `anon` sulle funzioni granulari (Supabase lo
+  concede per default). Da eseguire se la migrazione precedente era già stata
+  applicata prima di questo aggiornamento.
 
 `supabase/schema.sql` contiene già tutto per le installazioni nuove.
 
