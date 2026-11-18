@@ -1,5 +1,6 @@
 import { SUPABASE_MODE } from './mode';
 import { supabase } from './supabase';
+import { clearLocalData } from './localData';
 
 /**
  * Utente semplificato usato dall'interfaccia. In modalità Supabase viene
@@ -305,6 +306,7 @@ export async function deleteAccount(): Promise<void> {
     const { error } = await supabase.rpc('delete_own_account');
     if (error) throw new Error(error.message);
     await supabase.auth.signOut();
+    await clearLocalData();
     cloudUser = null;
     emitLocal(null);
     return;

@@ -498,6 +498,8 @@ export default function App() {
               src={`${import.meta.env.BASE_URL}brand/stimia-badge.png`}
               alt="Stimia"
               className="h-12 w-12 shrink-0 rounded-xl shadow-sm"
+              width={48}
+              height={48}
             />
             <div className="min-w-0">
               <h1 className="text-xl font-bold tracking-tight text-slate-900">Nuova password</h1>
@@ -578,6 +580,8 @@ export default function App() {
               src={`${import.meta.env.BASE_URL}brand/stimia-lockup.png`}
               alt="Stimia"
               className="h-12 w-auto"
+              width={146}
+              height={48}
             />
             <p className="mt-2 text-xs text-slate-500">Computi metrici e contabilità lavori</p>
           </div>
@@ -760,6 +764,8 @@ export default function App() {
                  src={`${import.meta.env.BASE_URL}brand/stimia-badge.png`}
                  alt="Stimia"
                  className="h-10 w-10 shrink-0 rounded-xl shadow-sm"
+                 width={40}
+                 height={40}
                />
                <div className="min-w-0">
                  <h1 className="truncate text-lg font-bold tracking-tight text-slate-900">I miei computi</h1>

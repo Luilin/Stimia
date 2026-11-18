@@ -154,8 +154,14 @@ export async function restoreProjectVersion(version: ProjectVersion): Promise<Pr
 }
 
 export async function deleteProjectVersions(projectId: string): Promise<void> {
-  const versions = await listProjectVersions(projectId);
-  await idbDeleteMany(STORE_VERSIONS, versions.map(item => item.id));
+  const meta = await idbGet<VersionMeta>(STORE_VERSION_META, projectId);
+  if (meta && meta.ids.length > 0) {
+    // Gli id sono nei metadati: non serve caricare gli snapshot completi.
+    await idbDeleteMany(STORE_VERSIONS, meta.ids);
+  } else {
+    const versions = await listProjectVersions(projectId);
+    await idbDeleteMany(STORE_VERSIONS, versions.map(item => item.id));
+  }
   await idbDelete(STORE_VERSION_META, projectId);
 }
 

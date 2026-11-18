@@ -166,6 +166,23 @@ location.reload();
 
 ---
 
+## Sicurezza
+
+- Autenticazione e dati cloud usano Supabase Auth con policy **RLS**; il bucket
+  `stimia-files` è privato e accessibile solo ai membri del progetto.
+- Le policy distinguono proprietario, editor e viewer. I permessi più fini
+  (SAL, prezzari, offerta ditta) sono applicati dall'interfaccia; a livello di
+  database un membro abilitato alla scrittura può aggiornare il payload del
+  progetto. È un compromesso noto del modello attuale.
+- I documenti generati (HTML di stampa, XML FatturaPA, ICS, EML, PDF) passano
+  da escape o sanitizzazione dei valori inseriti dall'utente.
+- L'eliminazione dell'account cancella i dati cloud e la copia locale nel
+  browser (IndexedDB e chiavi `stimia_*`).
+- La chiave Supabase `anon`/publishable è pubblica per progettazione: la
+  protezione dei dati dipende dalle policy RLS, non dalla segretezza della chiave.
+
+---
+
 ## Risoluzione problemi
 
 **La porta 3000 è occupata**

@@ -983,9 +983,16 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
       e.dataTransfer.effectAllowed = "move";
       const ghost = document.createElement('div');
       ghost.style.cssText = `position: absolute; top: -1000px; background: white; border: 1px solid #10b981; padding: 4px 8px; border-radius: 4px; z-index: 9999; font-size: 12px; font-weight: bold; display: flex; align-items: center; gap: 4px; color: #064e3b; box-shadow: 0 4px 6px rgba(0,0,0,0.1);`;
-      ghost.innerHTML = `<span style="background:#d1fae5; padding: 1px 4px; border-radius: 2px;">${catsToDrag.length}</span> Categorie`;
+      const badge = document.createElement('span');
+      badge.style.cssText = 'background:#d1fae5; padding: 1px 4px; border-radius: 2px;';
       if (catsToDrag.length === 1) {
-           ghost.innerHTML = `<span style="background:#d1fae5; padding: 1px 4px; border-radius: 2px;">${node.code}</span> ${node.name}`;
+          badge.textContent = node.code;
+          ghost.appendChild(badge);
+          ghost.appendChild(document.createTextNode(` ${node.name}`));
+      } else {
+          badge.textContent = String(catsToDrag.length);
+          ghost.appendChild(badge);
+          ghost.appendChild(document.createTextNode(' Categorie'));
       }
       document.body.appendChild(ghost);
       e.dataTransfer.setDragImage(ghost, 0, 0);

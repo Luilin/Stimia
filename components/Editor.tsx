@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Project, WBSNode, CostItem, COMMON_UOMS, ActiveDimensions, PriceBook, PriceBookItem, PriceBookCategory, EffectivePermissions, FULL_PERMISSIONS } from '../types';
 import { WBSTree } from './WBSTree';
 import { PriceBookPanel, DEFAULT_BOOKS } from './PriceBookPanel';
@@ -111,8 +111,7 @@ const getAllCodes = (nodes: WBSNode[]): string[] => {
     return codes;
 };
 
-const getDefaultActiveDimensions = (uom: string): ActiveDimensions => {
-    const u = uom.toLowerCase().trim();
+const getDefaultActiveDimensions = (uom: string): ActiveDimensions => {    const u = uom.toLowerCase().trim();
     if (u === 'm') return { length: true, area: false, height: false, weight: false };
     if (u === 'm²' || u === 'mq') return { length: false, area: true, height: false, weight: false };
     if (u === 'm³' || u === 'mc') return { length: false, area: true, height: true, weight: false };
@@ -142,6 +141,15 @@ const mergeDefaultSampleCategories = (books: Project['priceBooks']): Project['pr
       },
     };
   });
+};
+
+const findNode = (id: string, nodes: WBSNode[]): WBSNode | null => {
+  for (const node of nodes) {
+    if (node.id === id) return node;
+    const found = findNode(id, node.children);
+    if (found) return found;
+  }
+  return null;
 };
 
 export const Editor: React.FC<EditorProps> = ({ project: initialProject, currentUser, onClose, isReadOnly, userRole, permissions }) => {
@@ -543,15 +551,6 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
       }, 350);
   };
 
-  const findNode = (id: string, nodes: WBSNode[]): WBSNode | null => {
-    for (const node of nodes) {
-      if (node.id === id) return node;
-      const found = findNode(id, node.children);
-      if (found) return found;
-    }
-    return null;
-  };
-  
   // For resolving multiple IDs into full nodes
   const getMultiSelectionData = (ids: string[]): WBSNode[] => {
       const result: WBSNode[] = [];
@@ -565,11 +564,11 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
       return result;
   };
 
-  const getSelectedNode = () => {
+  const selectedNode = useMemo(() => {
     if (!selectedNodeId) return null;
-    return findNode(selectedNodeId, project.rootWBS.children) || (project.rootWBS.id === selectedNodeId ? project.rootWBS : null);
-  };
-  const selectedNode = getSelectedNode();
+    return findNode(selectedNodeId, project.rootWBS.children)
+      || (project.rootWBS.id === selectedNodeId ? project.rootWBS : null);
+  }, [selectedNodeId, project.rootWBS]);
   
   // WBS Selection Handler supporting multiple select via state update
   const handleSelectNode = (node: WBSNode, multi: boolean = false) => {
@@ -594,7 +593,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
       if (isMobile && !multi) setSidebarOpen(false);
   };
 
-  const filteredItems = selectedNode 
+  const filteredItems = useMemo(() => selectedNode
     ? selectedNode.items.filter(item => {
         if (!filterText.trim()) return true;
         const terms = filterText.toLowerCase().split(';').map(t => t.trim()).filter(t => t);
@@ -608,7 +607,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
             if (['peso', 'weight', 'dim:p'].includes(term) && item.activeDimensions.weight) return true;
             return false;
         });
-    }) : [];
+    }) : [], [selectedNode, filterText]);
 
   const updateNodeInTree = (root: WBSNode, updatedNode: WBSNode): WBSNode => {
     if (root.id === updatedNode.id) return updatedNode;

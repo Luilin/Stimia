@@ -41,10 +41,13 @@ const base64 = (value: string): string => {
 
 const wrapBase64 = (value: string): string => value.replace(/(.{76})/g, '$1\r\n');
 
+/** I valori delle intestazioni non devono poter introdurre nuove righe. */
+const sanitizeHeader = (value: string) => String(value ?? '').replace(/[\r\n]+/g, ' ').trim();
+
 export function buildRfqEml(project: Project, request: RfqRequest): string {
   const { subject, body } = buildRfqEmail(project, request);
-  const recipient = request.pec || request.email || '';
-  const from = project.createdBy || 'noreply@stimia.local';
+  const recipient = sanitizeHeader(request.pec || request.email || '');
+  const from = sanitizeHeader(project.createdBy || 'noreply@stimia.local');
   const date = new Date().toUTCString();
 
   return [

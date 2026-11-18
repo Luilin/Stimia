@@ -64,4 +64,14 @@ describe('buildIcs', () => {
     expect(url).toContain('https://calendar.google.com/calendar/render');
     expect(url).toContain('dates=');
   });
+
+  it('neutralizza CR/LF nei campi per evitare righe ICS aggiuntive', () => {
+    const [event] = projectDeadlines(project);
+    const ics = buildIcs(project, [
+      { ...event, title: 'Titolo\r\nX-EVIL: 1', description: 'Nota\rIniettata' },
+    ]);
+
+    expect(ics.split('\r\n').some(line => /^X-EVIL:/i.test(line))).toBe(false);
+    expect(ics.split('\r\n').some(line => /^Iniettata$/i.test(line))).toBe(false);
+  });
 });

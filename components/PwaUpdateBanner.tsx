@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { RefreshCw, X } from 'lucide-react';
+import { flushPendingSaves } from '../services/storage';
 
 /**
  * Avvisa quando il service worker ha una nuova versione pronta e permette
@@ -58,9 +59,11 @@ export const PwaUpdateBanner: React.FC = () => {
 
   if (!waiting || dismissed) return null;
 
-  const applyUpdate = () => {
+  const applyUpdate = async () => {
     setReloading(true);
-    waiting.postMessage({ type: 'SKIP_WAITING' });
+    // Attende i salvataggi in corso prima di ricaricare sulla nuova versione.
+    await flushPendingSaves().catch(() => undefined);
+    waiting?.postMessage({ type: 'SKIP_WAITING' });
   };
 
   return (

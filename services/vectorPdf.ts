@@ -332,7 +332,7 @@ const ensureBrandAssets = async (): Promise<void> => {
   if (brandBadgeDataUrl && brandLockupDataUrl) return;
   if (brandAssetsPromise) return brandAssetsPromise;
 
-  brandAssetsPromise = (async () => {
+  const task = (async () => {
     const [badge, lockup] = await Promise.all([
       loadBrandAsset('stimia-badge.png'),
       loadBrandAsset('stimia-lockup.png'),
@@ -341,7 +341,17 @@ const ensureBrandAssets = async (): Promise<void> => {
     brandLockupDataUrl = lockup;
   })();
 
-  return brandAssetsPromise;
+  brandAssetsPromise = task;
+  task
+    .finally(() => {
+      // Un errore di rete non deve impedire un nuovo tentativo al prossimo PDF.
+      if (!brandBadgeDataUrl && !brandLockupDataUrl && brandAssetsPromise === task) {
+        brandAssetsPromise = null;
+      }
+    })
+    .catch(() => undefined);
+
+  return task;
 };
 
 const headerContent = (options: VectorPdfOptions) => {

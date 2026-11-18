@@ -1,5 +1,37 @@
 import { describe, expect, it } from 'vitest';
-import { classifySyncError, membersSignature } from './syncUtils';
+import type { MemberPermission } from '../types';
+import { classifySyncError, databaseRole, membersSignature } from './syncUtils';
+
+const permission = (overrides: Partial<MemberPermission> = {}): MemberPermission => ({
+  email: 'a@b.it',
+  role: 'viewer',
+  canRead: true,
+  canWrite: false,
+  canManageMembers: false,
+  canEditSAL: false,
+  canEditPriceBooks: false,
+  canExport: true,
+  ...overrides,
+});
+
+describe('databaseRole', () => {
+  it('considera editor chi può scrivere, gestire SAL o prezzari', () => {
+    expect(databaseRole(permission({ canWrite: true }))).toBe('editor');
+    expect(databaseRole(permission({ canEditSAL: true }))).toBe('editor');
+    expect(databaseRole(permission({ canEditPriceBooks: true }))).toBe('editor');
+  });
+
+  it('considera editor la ditta, che deve salvare la propria offerta', () => {
+    expect(databaseRole(permission({ role: 'ditta' }))).toBe('editor');
+    expect(databaseRole(undefined, 'ditta')).toBe('editor');
+  });
+
+  it('lascia viewer chi ha solo lettura/export', () => {
+    expect(databaseRole(permission())).toBe('viewer');
+    expect(databaseRole(undefined, 'viewer')).toBe('viewer');
+    expect(databaseRole(undefined)).toBe('viewer');
+  });
+});
 
 describe('membersSignature', () => {
   it('è stabile rispetto all’ordine e alle maiuscole', () => {

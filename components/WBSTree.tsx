@@ -110,9 +110,17 @@ export const WBSTree: React.FC<WBSTreeProps> = ({
     `;
     
     if (isMultiDragging) {
-        ghost.innerHTML = `<span style="background:#e0e7ff; color:#4338ca; padding:2px 6px; border-radius:4px;">${selectedNodeIds?.size}</span> Categorie`;
+        const badge = document.createElement('span');
+        badge.style.cssText = 'background:#e0e7ff; color:#4338ca; padding:2px 6px; border-radius:4px;';
+        badge.textContent = String(selectedNodeIds?.size ?? 0);
+        ghost.appendChild(badge);
+        ghost.appendChild(document.createTextNode('Categorie'));
     } else {
-        ghost.innerHTML = `<span style="background:#e0e7ff; color:#4338ca; padding:2px 6px; border-radius:4px; font-family: monospace;">${node.code}</span> ${node.name}`;
+        const badge = document.createElement('span');
+        badge.style.cssText = 'background:#e0e7ff; color:#4338ca; padding:2px 6px; border-radius:4px; font-family: monospace;';
+        badge.textContent = node.code;
+        ghost.appendChild(badge);
+        ghost.appendChild(document.createTextNode(` ${node.name}`));
     }
     
     document.body.appendChild(ghost);

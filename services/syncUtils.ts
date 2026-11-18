@@ -5,6 +5,8 @@
  * testate senza browser.
  */
 
+import type { MemberPermission } from '../types';
+
 export interface MemberEntry {
   email: string;
   role: 'editor' | 'viewer';
@@ -29,6 +31,25 @@ export function membersSignature(members: MemberEntry[]): string {
     hash = Math.imul(hash, 0x01000193);
   }
   return (hash >>> 0).toString(16);
+}
+
+/**
+ * Ruolo da salvare in `project_members`: il database conosce solo editor/viewer,
+ * quindi anche i ruoli con permessi parziali di scrittura (SAL, prezzari, ditta)
+ * devono poter aggiornare la riga.
+ */
+export function databaseRole(
+  permission: MemberPermission | undefined,
+  legacyRole?: 'editor' | 'viewer' | 'ditta',
+): 'editor' | 'viewer' {
+  if (permission) {
+    const canEdit = permission.role === 'ditta'
+      || permission.canWrite
+      || permission.canEditSAL
+      || permission.canEditPriceBooks;
+    return canEdit ? 'editor' : 'viewer';
+  }
+  return legacyRole === 'editor' || legacyRole === 'ditta' ? 'editor' : 'viewer';
 }
 
 export type SyncErrorKind = 'permanent' | 'offline' | 'retry';

@@ -99,7 +99,7 @@ export function projectDeadlines(project: Project): CalendarEvent[] {
 const icsEscape = (value: string) =>
   String(value ?? '')
     .replace(/\\/g, '\\\\')
-    .replace(/\n/g, '\\n')
+    .replace(/\r\n|\r|\n/g, '\\n')
     .replace(/,/g, '\\,')
     .replace(/;/g, '\\;');
 
@@ -138,7 +138,7 @@ export function buildIcs(_project: Project, events: CalendarEvent[]): string {
     const start = icsDate(event.date);
     const end = icsDate(event.date + DAY_MS);
     lines.push('BEGIN:VEVENT');
-    lines.push(`UID:${event.id}@stimia`);
+    lines.push(`UID:${icsEscape(event.id)}@stimia`);
     lines.push(`DTSTAMP:${stamp}`);
     lines.push(`DTSTART;VALUE=DATE:${start}`);
     lines.push(`DTEND;VALUE=DATE:${end}`);

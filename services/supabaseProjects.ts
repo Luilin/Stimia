@@ -12,7 +12,7 @@ import {
 } from './idb';
 import { supabase } from './supabase';
 import * as localProjects from './localProjects';
-import { MEMBER_SIGNATURE_PREFIX, classifySyncError, membersSignature } from './syncUtils';
+import { MEMBER_SIGNATURE_PREFIX, classifySyncError, databaseRole, membersSignature } from './syncUtils';
 
 /**
  * Archivio progetti su Supabase (Postgres).
@@ -251,16 +251,12 @@ export async function upsertRemoteProject(project: Project): Promise<void> {
     const permissionKey = Object.keys(project.memberPermissions || {})
       .find((key) => key.toLowerCase() === email);
     const permission = permissionKey ? project.memberPermissions?.[permissionKey] : undefined;
-    if (permission) {
-      return permission.canWrite || permission.canEditSAL || permission.canEditPriceBooks
-        ? 'editor'
-        : 'viewer';
-    }
 
     const collaboratorKey = Object.keys(project.collaborators || {})
       .find((key) => key.toLowerCase() === email);
     const collaboratorRole = collaboratorKey ? project.collaborators?.[collaboratorKey] : undefined;
-    return collaboratorRole === 'editor' ? 'editor' : 'viewer';
+
+    return databaseRole(permission, collaboratorRole);
   };
 
   const members = emails.map(email => ({ email, role: roleFor(email) }));

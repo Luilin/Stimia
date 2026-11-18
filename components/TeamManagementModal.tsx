@@ -122,6 +122,10 @@ export const ROLE_PRESETS: Record<RoleType, {
 };
 
 export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail, onSave, onClose }) => {
+  const appInviteUrl = typeof window !== 'undefined'
+    ? window.location.origin + (import.meta.env.BASE_URL || '/')
+    : 'https://luilin.github.io/Stimia/';
+
   const [memberPermissions, setMemberPermissions] = useState<Record<string, MemberPermission>>(() => {
     const existing = { ...(project.memberPermissions || {}) };
     
@@ -188,7 +192,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
     setEmailStatusMessage(null);
     try {
       const roleLabel = ROLE_PRESETS[role]?.label || role;
-      const appUrl = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://computo-henna.vercel.app';
+      const appUrl = appInviteUrl;
       const response = await fetch('https://api.emailjs.com/api/v1.0/email/send', {
         method: 'POST',
         headers: {
@@ -262,7 +266,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
 
   const triggerInviteEmail = (email: string, role: RoleType) => {
     const roleLabel = ROLE_PRESETS[role]?.label || role;
-    const appUrl = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://computo-henna.vercel.app';
+    const appUrl = appInviteUrl;
     const subject = encodeURIComponent(`Invito a collaborare su Stimia - ${project.name}`);
     const body = encodeURIComponent(
       `Ciao,\n\nTi ho aggiunto come collaboratore con il ruolo di "${roleLabel}" sul progetto di computo metrico "${project.name}" su Stimia.\n\nPuoi registrarti ed accedere al computo cliccando sul seguente link:\n${appUrl}\n\nUna volta registrato con questa email (${email}), vedrai automaticamente il progetto condiviso nella tua dashboard.\n\nBuon lavoro!`
@@ -274,11 +278,18 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
 
   const copyInviteText = (email: string, role: RoleType) => {
     const roleLabel = ROLE_PRESETS[role]?.label || role;
-    const appUrl = typeof window !== 'undefined' && window.location.origin ? window.location.origin : 'https://computo-henna.vercel.app';
+    const appUrl = appInviteUrl;
     const text = `Ciao! Ti ho aggiunto come collaboratore con il ruolo di "${roleLabel}" sul progetto di computo metrico "${project.name}" su Stimia.\n\nPuoi registrarti ed accedere al computo cliccando qui:\n${appUrl}\n\nRegistrati con l'indirizzo: ${email}`;
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    if (!navigator.clipboard) return;
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(() => {
+        /* clipboard non disponibile o permesso negato */
+      });
   };
 
   const handleRoleChangeSelect = (r: RoleType) => {
