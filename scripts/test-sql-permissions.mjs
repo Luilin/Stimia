@@ -356,6 +356,39 @@ try {
 
   await asAnon();
   await expectError('Storage: anon non può caricare', "insert into storage.objects(name, bucket_id) values ('p1/attachments/anon', 'stimia-files')", /permission denied/i);
+
+  // --- Verifica finale con lo script SQL read-only -------------------
+  await superuser();
+  await db.exec(`
+    alter table public.project_members enable row level security;
+    create policy members_select_for_test on public.project_members
+      for select to authenticated using (true);
+  `);
+
+  const verification = await db.query(fs.readFileSync('supabase/verify_security.sql', 'utf8'));
+  for (const row of verification.rows) {
+    ok(`Verifica: ${row.controllo}`, row.risultato === 'PASS', String(row.risultato));
+  }
+
+  // La verifica deve accorgersi se viene reintrodotta la vecchia policy errata.
+  await superuser();
+  await db.exec(`
+    drop policy stimia_files_insert on storage.objects;
+    create policy stimia_files_insert on storage.objects
+      for insert to authenticated
+      with check (
+        bucket_id = 'stimia-files'
+        and (storage.foldername(name))[2] = 'attachments'
+        and exists (
+          select 1 from public.projects p
+          where p.id = (storage.foldername(name))[1]
+            and (p.owner_id = auth.uid() or public.is_project_writer(p.id))
+        )
+      );
+  `);
+  const buggyVerification = await db.query(fs.readFileSync('supabase/verify_security.sql', 'utf8'));
+  const storageRow = buggyVerification.rows.find(row => row.controllo === 'Policy Storage usa il percorso corretto');
+  ok('Verifica: rileva la policy Storage errata', storageRow?.risultato === 'FAIL', String(storageRow?.risultato));
 } catch (error) {
   console.error('ERRORE FATALE:', error);
   failed += 1;

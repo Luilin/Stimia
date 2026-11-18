@@ -52,6 +52,13 @@ esistente esegui la migrazione più recente dal **SQL Editor**:
 
 `supabase/schema.sql` contiene già tutto per le installazioni nuove.
 
+## Verifica
+
+Dopo aver applicato le migrazioni, esegui
+[`supabase/verify_security.sql`](supabase/verify_security.sql) nel **SQL
+Editor**: è un controllo read-only che restituisce `PASS`/`FAIL` per colonne
+granulari, funzioni, privilegi `anon`, RLS e policy Storage.
+
 ## Configurazione (una volta sola)
 
 1. Crea un progetto gratuito su <https://supabase.com>.
