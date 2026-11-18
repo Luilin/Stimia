@@ -35,6 +35,11 @@ esistente esegui la migrazione più recente dal **SQL Editor**:
   `stimia-files` e funzione di eliminazione account.
 - [`20261115_storage_policy_fix.sql`](supabase/migrations/20261115_storage_policy_fix.sql)
   — correzione delle policy Storage per i percorsi con più livelli.
+- [`20261118_granular_permissions.sql`](supabase/migrations/20261118_granular_permissions.sql)
+  — permessi granulari: colonne `can_write`, `can_edit_sal`,
+  `can_edit_price_books`, RPC `save_project_parts` per SAL/prezzari e policy
+  aggiornate. Il client funziona anche prima di applicarla (fallback
+  compatibile); dopo l'esecuzione i permessi parziali sono applicati dal DB.
 
 `supabase/schema.sql` contiene già tutto per le installazioni nuove.
 

@@ -12,7 +12,14 @@ import {
 } from './idb';
 import { supabase } from './supabase';
 import * as localProjects from './localProjects';
-import { MEMBER_SIGNATURE_PREFIX, classifySyncError, databaseRole, membersSignature } from './syncUtils';
+import {
+  MEMBER_SIGNATURE_PREFIX,
+  classifySyncError,
+  membersSignature,
+  projectMemberPermissions,
+  projectSaveMode,
+} from './syncUtils';
+import type { DbMemberPermissions } from './syncUtils';
 
 /**
  * Archivio progetti su Supabase (Postgres).
@@ -161,6 +168,12 @@ export async function fetchRemoteProjects(): Promise<Project[]> {
 
 const signatureKey = (projectId: string) => `${MEMBER_SIGNATURE_PREFIX}${projectId}`;
 
+/**
+ * null = non ancora verificato in questa sessione; false = il database non ha
+ * le colonne granulari (migrazione non applicata).
+ */
+let memberColumnsAvailable: boolean | null = null;
+
 function readMembersSignature(projectId: string): string | null {
   try {
     return window.localStorage.getItem(signatureKey(projectId));
@@ -245,26 +258,35 @@ export async function upsertRemoteProject(project: Project): Promise<void> {
     ),
   );
 
-  // Il ruolo nel database deve rispecchiare i permessi dell'interfaccia:
+  // Il ruolo e i permessi nel database devono rispecchiare l'interfaccia:
   // altrimenti un "viewer" potrebbe comunque scrivere via API.
-  const roleFor = (email: string): 'editor' | 'viewer' => {
-    const permissionKey = Object.keys(project.memberPermissions || {})
-      .find((key) => key.toLowerCase() === email);
-    const permission = permissionKey ? project.memberPermissions?.[permissionKey] : undefined;
+  const members = emails.map(email => {
+    const db = projectMemberPermissions(project, email);
+    return {
+      email,
+      role: db.role,
+      can_write: db.canWrite,
+      can_edit_sal: db.canEditSAL,
+      can_edit_price_books: db.canEditPriceBooks,
+    };
+  });
 
-    const collaboratorKey = Object.keys(project.collaborators || {})
-      .find((key) => key.toLowerCase() === email);
-    const collaboratorRole = collaboratorKey ? project.collaborators?.[collaboratorKey] : undefined;
-
-    return databaseRole(permission, collaboratorRole);
-  };
-
-  const members = emails.map(email => ({ email, role: roleFor(email) }));
-  const signature = membersSignature(members);
+  const signature = membersSignature(members.map(member => ({
+    email: member.email,
+    role: member.role,
+    canWrite: member.can_write,
+    canEditSAL: member.can_edit_sal,
+    canEditPriceBooks: member.can_edit_price_books,
+  })));
 
   // L'autosave non deve cancellare e reinserire i membri a ogni modifica:
-  // lo fa solo quando condivisione o ruoli cambiano davvero.
-  if (readMembersSignature(project.id) === signature) return;
+  // lo fa solo quando condivisione, ruoli o permessi cambiano davvero.
+  const granularKey = `g:${signature}`;
+  const legacyKey = `l:${signature}`;
+  const storedSignature = readMembersSignature(project.id);
+  if (storedSignature === granularKey) return;
+  // Sessione già in modalità legacy: evita delete/insert a ogni autosave.
+  if (storedSignature === legacyKey && memberColumnsAvailable === false) return;
 
   const { error: deleteError } = await client
     .from('project_members')
@@ -275,11 +297,35 @@ export async function upsertRemoteProject(project: Project): Promise<void> {
   if (members.length > 0) {
     const { error: insertError } = await client
       .from('project_members')
-      .insert(members.map(member => ({ project_id: project.id, email: member.email, role: member.role })));
-    if (insertError) throw new Error(insertError.message);
+      .insert(members.map(member => ({ project_id: project.id, ...member })));
+
+    if (insertError) {
+      // Compatibilità con un database non ancora migrato: inserisce i soli
+      // campi storici e memorizza una firma "legacy" per evitare di ripetere
+      // delete/insert a ogni autosave. Al prossimo avvio si riproverà.
+      const missingColumns = /can_write|can_edit_sal|can_edit_price_books/i.test(insertError.message)
+        && /does not exist|schema cache|column/i.test(insertError.message);
+
+      if (!missingColumns) throw new Error(insertError.message);
+
+      const { error: legacyError } = await client
+        .from('project_members')
+        .insert(members.map(member => ({
+          project_id: project.id,
+          email: member.email,
+          role: member.role,
+        })));
+      if (legacyError) throw new Error(legacyError.message);
+
+      memberColumnsAvailable = false;
+      writeMembersSignature(project.id, legacyKey);
+      return;
+    }
+
+    memberColumnsAvailable = true;
   }
 
-  writeMembersSignature(project.id, signature);
+  writeMembersSignature(project.id, granularKey);
 }
 
 export async function deleteRemoteProject(projectId: string): Promise<void> {
@@ -289,6 +335,84 @@ export async function deleteRemoteProject(projectId: string): Promise<void> {
 
   clearMembersSignature(projectId);
   await idbDelete(STORE_SYNC_META, projectId);
+}
+
+const isMissingRpcError = (error: { code?: string; message?: string } | null): boolean =>
+  Boolean(error && (error.code === 'PGRST202' || /save_project_parts/i.test(error.message || '')));
+
+/**
+ * Aggiorna solo le parti consentite (SAL e/o prezzari) tramite RPC.
+ * Il database controlla i permessi e non sovrascrive il resto del progetto.
+ */
+async function saveRestrictedParts(project: Project, permissions: DbMemberPermissions): Promise<void> {
+  const client = requireClient();
+  const sals = permissions.canEditSAL ? (project.sals ?? null) : null;
+  const priceBooks = permissions.canEditPriceBooks ? (project.priceBooks ?? null) : null;
+
+  if (sals === null && priceBooks === null) {
+    // Nessuna delle parti che questo utente può modificare è cambiata.
+    return;
+  }
+
+  const { data, error } = await client.rpc('save_project_parts', {
+    p_project_id: project.id,
+    p_sals: sals,
+    p_price_books: priceBooks,
+  });
+
+  if (error) {
+    if (isMissingRpcError(error)) {
+      // Distingue "database non migrato" (nessuna colonna granulare) da una
+      // semplice cache PostgREST non aggiornata: nel secondo caso si ritenta.
+      const { error: columnsError } = await client
+        .from('project_members')
+        .select('can_write')
+        .eq('project_id', project.id)
+        .limit(1);
+
+      if (!columnsError) {
+        throw new Error('Funzione di salvataggio in aggiornamento. Riprova tra poco.');
+      }
+
+      // Database non ancora migrato: il vecchio ruolo "editor" permette ancora
+      // l'aggiornamento completo. Si continua a funzionare fino alla migrazione.
+      await upsertRemoteProject(project);
+      return;
+    }
+
+    throw new Error(error.message);
+  }
+
+  const updatedAt = typeof data === 'string'
+    ? data
+    : (data as { updated_at?: string } | null)?.updated_at;
+  if (updatedAt) {
+    await idbPut<SyncMeta>(STORE_SYNC_META, { projectId: project.id, updatedAt });
+  }
+}
+
+/**
+ * Salva il progetto sul cloud scegliendo il percorso consentito: aggiornamento
+ * completo per proprietario/editor, RPC dedicata per chi può modificare solo
+ * SAL o prezzari.
+ */
+export async function saveRemoteProject(project: Project): Promise<void> {
+  const user = getCurrentUser();
+  if (!user) throw new Error('Not authenticated');
+
+  const mode = projectSaveMode(project, user.uid, user.email);
+
+  if (mode === 'full') {
+    await upsertRemoteProject(project);
+    return;
+  }
+
+  if (mode === 'parts') {
+    await saveRestrictedParts(project, projectMemberPermissions(project, user.email));
+    return;
+  }
+
+  throw new Error('Permessi insufficienti per salvare il progetto.');
 }
 
 export async function enqueueSync(projectId: string, op: 'upsert' | 'delete'): Promise<void> {
@@ -310,7 +434,7 @@ export async function flushSyncQueue(): Promise<void> {
         await deleteRemoteProject(entry.projectId);
       } else {
         const project = await idbGet<Project>(STORE_PROJECTS, entry.projectId);
-        if (project) await upsertRemoteProject(project);
+        if (project) await saveRemoteProject(project);
       }
       await idbDelete(STORE_SYNC_QUEUE, entry.projectId);
     } catch (error) {
@@ -404,7 +528,7 @@ export async function saveProjectWithCache(project: Project): Promise<void> {
 
   try {
     // ...poi sul database SQL.
-    await upsertRemoteProject(project);
+    await saveRemoteProject(project);
     await idbDelete(STORE_SYNC_QUEUE, project.id);
   } catch (error) {
     console.warn('Salvataggio sul cloud rimandato:', error);

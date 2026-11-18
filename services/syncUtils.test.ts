@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { MemberPermission } from '../types';
-import { classifySyncError, databaseRole, membersSignature } from './syncUtils';
+import type { MemberPermission, Project } from '../types';
+import {
+  classifySyncError,
+  databaseRole,
+  membersSignature,
+  memberDbPermissions,
+  projectSaveMode,
+} from './syncUtils';
 
 const permission = (overrides: Partial<MemberPermission> = {}): MemberPermission => ({
   email: 'a@b.it',
@@ -12,6 +18,44 @@ const permission = (overrides: Partial<MemberPermission> = {}): MemberPermission
   canEditPriceBooks: false,
   canExport: true,
   ...overrides,
+});
+
+const baseProject = {
+  id: 'p1',
+  name: 'Progetto',
+  description: '',
+  lastModified: 0,
+  createdBy: 'owner@example.com',
+  userId: 'owner-uid',
+  rootWBS: { id: 'root', code: '', name: 'Root', level: 0, items: [], children: [] },
+} as unknown as Project;
+
+describe('memberDbPermissions', () => {
+  it('mantiene separati scrittura completa e permessi parziali', () => {
+    expect(memberDbPermissions(permission({ canWrite: true }))).toEqual({
+      role: 'editor', canWrite: true, canEditSAL: false, canEditPriceBooks: false,
+    });
+
+    expect(memberDbPermissions(permission({ canEditSAL: true }))).toEqual({
+      role: 'editor', canWrite: false, canEditSAL: true, canEditPriceBooks: false,
+    });
+
+    expect(memberDbPermissions(permission({ canEditPriceBooks: true }))).toEqual({
+      role: 'editor', canWrite: false, canEditSAL: false, canEditPriceBooks: true,
+    });
+  });
+
+  it('tratta la ditta come editor per salvare l’offerta', () => {
+    expect(memberDbPermissions(permission({ role: 'ditta' }))).toEqual({
+      role: 'editor', canWrite: true, canEditSAL: false, canEditPriceBooks: false,
+    });
+  });
+
+  it('mappa i vecchi ruoli', () => {
+    expect(memberDbPermissions(undefined, 'editor').canWrite).toBe(true);
+    expect(memberDbPermissions(undefined, 'ditta').canWrite).toBe(true);
+    expect(memberDbPermissions(undefined, 'viewer').canWrite).toBe(false);
+  });
 });
 
 describe('databaseRole', () => {
@@ -54,8 +98,65 @@ describe('membersSignature', () => {
     expect(editor).not.toBe(viewer);
   });
 
+  it('cambia quando cambiano i permessi granulari', () => {
+    const base = membersSignature([{ email: 'a@b.it', role: 'editor', canEditSAL: true }]);
+    const changed = membersSignature([{ email: 'a@b.it', role: 'editor', canEditSAL: false }]);
+
+    expect(base).not.toBe(changed);
+  });
+
   it('normalizza un elenco vuoto', () => {
     expect(membersSignature([])).toBe(membersSignature([]));
+  });
+});
+
+describe('projectSaveMode', () => {
+  it('tratta il proprietario come scrittura completa', () => {
+    expect(projectSaveMode(baseProject, 'owner-uid', 'owner@example.com')).toBe('full');
+  });
+
+  it('usa la scrittura completa per un editor completo', () => {
+    const project = {
+      ...baseProject,
+      memberPermissions: { 'a@b.it': permission({ canWrite: true }) },
+    };
+    expect(projectSaveMode(project, 'member-uid', 'a@b.it')).toBe('full');
+  });
+
+  it('usa il percorso parziale per SAL o prezzari', () => {
+    const sal = {
+      ...baseProject,
+      memberPermissions: { 'a@b.it': permission({ canEditSAL: true }) },
+    };
+    const priceBooks = {
+      ...baseProject,
+      memberPermissions: { 'a@b.it': permission({ canEditPriceBooks: true }) },
+    };
+
+    expect(projectSaveMode(sal, 'member-uid', 'a@b.it')).toBe('parts');
+    expect(projectSaveMode(priceBooks, 'member-uid', 'a@b.it')).toBe('parts');
+  });
+
+  it('non salva un viewer', () => {
+    const project = {
+      ...baseProject,
+      memberPermissions: { 'a@b.it': permission() },
+    };
+    expect(projectSaveMode(project, 'member-uid', 'a@b.it')).toBe('viewer');
+  });
+
+  it('riconosce il proprietario dal createdBy quando manca userId', () => {
+    const project = { ...baseProject, userId: undefined };
+    expect(projectSaveMode(project, 'owner-uid', 'OWNER@example.com')).toBe('full');
+  });
+
+  it('tratta il vecchio ruolo ditta come editor', () => {
+    const project = { ...baseProject, collaborators: { 'a@b.it': 'ditta' as const } };
+    expect(projectSaveMode(project, 'member-uid', 'a@b.it')).toBe('full');
+  });
+
+  it('per un progetto legacy senza permessi lascia decidere il database', () => {
+    expect(projectSaveMode(baseProject, 'member-uid', 'a@b.it')).toBe('full');
   });
 });
 

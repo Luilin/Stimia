@@ -170,10 +170,11 @@ location.reload();
 
 - Autenticazione e dati cloud usano Supabase Auth con policy **RLS**; il bucket
   `stimia-files` è privato e accessibile solo ai membri del progetto.
-- Le policy distinguono proprietario, editor e viewer. I permessi più fini
-  (SAL, prezzari, offerta ditta) sono applicati dall'interfaccia; a livello di
-  database un membro abilitato alla scrittura può aggiornare il payload del
-  progetto. È un compromesso noto del modello attuale.
+- Le policy distinguono proprietario, editor e viewer. Con la migrazione
+  [`20261118_granular_permissions.sql`](supabase/migrations/20261118_granular_permissions.sql)
+  anche i permessi SAL e prezzari sono applicati dal database tramite RPC
+  dedicate; la ditta resta un editor applicativo perché compila l'offerta
+  dentro la struttura del computo.
 - I documenti generati (HTML di stampa, XML FatturaPA, ICS, EML, PDF) passano
   da escape o sanitizzazione dei valori inseriti dall'utente.
 - L'eliminazione dell'account cancella i dati cloud e la copia locale nel
