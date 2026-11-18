@@ -271,18 +271,18 @@ create policy stimia_files_insert on storage.objects
     bucket_id = 'stimia-files'
     and (
       (
-        (storage.foldername(name))[2] = 'attachments'
+        (storage.foldername(storage.objects.name))[2] = 'attachments'
         and exists (
           select 1 from public.projects p
-          where p.id = (storage.foldername(name))[1]
+          where p.id = (storage.foldername(storage.objects.name))[1]
             and (p.owner_id = auth.uid() or public.is_project_writer(p.id))
         )
       )
       or (
-        (storage.foldername(name))[2] = 'price-books'
+        (storage.foldername(storage.objects.name))[2] = 'price-books'
         and exists (
           select 1 from public.projects p
-          where p.id = (storage.foldername(name))[1]
+          where p.id = (storage.foldername(storage.objects.name))[1]
             and (p.owner_id = auth.uid() or public.is_project_price_book_editor(p.id))
         )
       )
@@ -296,18 +296,18 @@ create policy stimia_files_update on storage.objects
     bucket_id = 'stimia-files'
     and (
       (
-        (storage.foldername(name))[2] = 'attachments'
+        (storage.foldername(storage.objects.name))[2] = 'attachments'
         and exists (
           select 1 from public.projects p
-          where p.id = (storage.foldername(name))[1]
+          where p.id = (storage.foldername(storage.objects.name))[1]
             and (p.owner_id = auth.uid() or public.is_project_writer(p.id))
         )
       )
       or (
-        (storage.foldername(name))[2] = 'price-books'
+        (storage.foldername(storage.objects.name))[2] = 'price-books'
         and exists (
           select 1 from public.projects p
-          where p.id = (storage.foldername(name))[1]
+          where p.id = (storage.foldername(storage.objects.name))[1]
             and (p.owner_id = auth.uid() or public.is_project_price_book_editor(p.id))
         )
       )
@@ -317,18 +317,18 @@ create policy stimia_files_update on storage.objects
     bucket_id = 'stimia-files'
     and (
       (
-        (storage.foldername(name))[2] = 'attachments'
+        (storage.foldername(storage.objects.name))[2] = 'attachments'
         and exists (
           select 1 from public.projects p
-          where p.id = (storage.foldername(name))[1]
+          where p.id = (storage.foldername(storage.objects.name))[1]
             and (p.owner_id = auth.uid() or public.is_project_writer(p.id))
         )
       )
       or (
-        (storage.foldername(name))[2] = 'price-books'
+        (storage.foldername(storage.objects.name))[2] = 'price-books'
         and exists (
           select 1 from public.projects p
-          where p.id = (storage.foldername(name))[1]
+          where p.id = (storage.foldername(storage.objects.name))[1]
             and (p.owner_id = auth.uid() or public.is_project_price_book_editor(p.id))
         )
       )
@@ -342,18 +342,18 @@ create policy stimia_files_delete on storage.objects
     bucket_id = 'stimia-files'
     and (
       (
-        (storage.foldername(name))[2] = 'attachments'
+        (storage.foldername(storage.objects.name))[2] = 'attachments'
         and exists (
           select 1 from public.projects p
-          where p.id = (storage.foldername(name))[1]
+          where p.id = (storage.foldername(storage.objects.name))[1]
             and (p.owner_id = auth.uid() or public.is_project_writer(p.id))
         )
       )
       or (
-        (storage.foldername(name))[2] = 'price-books'
+        (storage.foldername(storage.objects.name))[2] = 'price-books'
         and exists (
           select 1 from public.projects p
-          where p.id = (storage.foldername(name))[1]
+          where p.id = (storage.foldername(storage.objects.name))[1]
             and (p.owner_id = auth.uid() or public.is_project_price_book_editor(p.id))
         )
       )

@@ -44,6 +44,11 @@ esistente esegui la migrazione più recente dal **SQL Editor**:
   — revoca `EXECUTE` al ruolo `anon` sulle funzioni granulari (Supabase lo
   concede per default). Da eseguire se la migrazione precedente era già stata
   applicata prima di questo aggiornamento.
+- [`20261118_fix_storage_path.sql`](supabase/migrations/20261118_fix_storage_path.sql)
+  — corregge le policy Storage: il percorso va qualificato come
+  `storage.objects.name`, altrimenti `name` viene risolto come
+  `projects.name` e gli upload vengono bloccati. Da eseguire se la migrazione
+  granulare era già stata applicata.
 
 `supabase/schema.sql` contiene già tutto per le installazioni nuove.
 

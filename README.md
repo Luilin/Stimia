@@ -139,6 +139,7 @@ location.reload();
 | `npm run preview:local` | Anteprima della build locale |
 | `npm run lint` | Controllo TypeScript (`tsc --noEmit`) |
 | `npm test` | Test automatici (Vitest) |
+| `npm run test:sql` | Test di funzioni, RPC e policy su Postgres WASM (PGlite) |
 
 ---
 
