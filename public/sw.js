@@ -2,7 +2,7 @@
    Usa percorsi relativi allo scope, così funziona anche su GitHub Pages
    in una sottocartella (es. /stimia/). */
 const BASE = new URL('./', self.location.href).pathname;
-const CACHE_NAME = 'stimia-v14';
+const CACHE_NAME = 'stimia-v15';
 const STATIC_FILES = [
   BASE + 'manifest.webmanifest',
   BASE + 'process-polyfill.js',
