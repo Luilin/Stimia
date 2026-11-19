@@ -470,6 +470,13 @@ try {
     JSON.stringify(afterRemoval.rootWBS.children[0].items.map((entry) => entry.id)),
   );
 
+  await asMember('ditta@test.it');
+  await expectError(
+    'Offerta ditta: non può salvare i SAL',
+    "select public.save_project_parts_v2('p1', '[{\"id\":\"hack\"}]'::jsonb, null, null)",
+    /Permessi insufficienti per i SAL/i,
+  );
+
   await asMember('viewer@test.it');
   await expectError(
     'Offerta ditta: viewer bloccato',

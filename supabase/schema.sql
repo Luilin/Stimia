@@ -843,7 +843,7 @@ begin
       coalesce(m.can_write, false),
       coalesce(m.can_edit_sal, false),
       coalesce(m.can_edit_price_books, false),
-      (m.role = 'editor' and not m.can_edit_sal and not m.can_edit_price_books)
+      (m.role = 'editor' and not m.can_edit_sal and not m.can_edit_price_books and not m.can_edit_offer)
     into v_can_write, v_can_sal, v_can_pb, v_legacy_editor
     from public.project_members m
     where m.project_id = p_project_id

@@ -52,7 +52,13 @@ esistente esegui la migrazione più recente dal **SQL Editor**:
 - [`20261119_data_safety.sql`](supabase/migrations/20261119_data_safety.sql)
   — concorrenza ottimistica per SAL/prezzari (`save_project_parts_v2`),
   cronologia versioni condivisa (`project_versions`), limite server-side a 20
-  versioni e versione schema leggibile dall'app.
+  versioni, versione schema leggibile dall'app e permesso ditta
+  `can_edit_offer` con RPC `save_project_offer` (la ditta modifica solo
+  l'offerta, non il computo base).
+
+Se il SQL Editor tronca un incollaggio lungo, usa i blocchi già divisi in
+[`supabase/sql-editor/`](supabase/sql-editor/README.md): vanno eseguiti in
+ordine da `01` a `05`.
 
 `supabase/schema.sql` contiene già tutto per le installazioni nuove.
 
