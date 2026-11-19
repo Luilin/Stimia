@@ -4,7 +4,7 @@
  */
 
 export const APP_DB_NAME = 'stimia_files';
-export const APP_DB_VERSION = 5;
+export const APP_DB_VERSION = 6;
 export const STORE_ATTACHMENTS = 'attachments';
 export const STORE_VERSIONS = 'versions';
 export const STORE_PRICE_BOOKS = 'priceBooks';
@@ -15,6 +15,10 @@ export const STORE_SYNC_QUEUE = 'syncQueue';
 export const STORE_VERSION_META = 'versionMeta';
 /** Ultimo `updated_at` remoto visto, per sincronizzare solo i progetti cambiati. */
 export const STORE_SYNC_META = 'syncMeta';
+/** Progetti con un conflitto di modifica concorrente da risolvere. */
+export const STORE_SYNC_CONFLICTS = 'syncConflicts';
+/** Versioni create offline da inviare al cloud. */
+export const STORE_VERSION_SYNC_QUEUE = 'versionSyncQueue';
 
 /** Nome usato prima del rebrand: serve solo per migrare i dati esistenti. */
 const LEGACY_DB_NAME = 'edilestimator_files';
@@ -56,6 +60,14 @@ function applySchema(db: IDBDatabase) {
 
   if (!db.objectStoreNames.contains(STORE_SYNC_META)) {
     db.createObjectStore(STORE_SYNC_META, { keyPath: 'projectId' });
+  }
+
+  if (!db.objectStoreNames.contains(STORE_SYNC_CONFLICTS)) {
+    db.createObjectStore(STORE_SYNC_CONFLICTS, { keyPath: 'projectId' });
+  }
+
+  if (!db.objectStoreNames.contains(STORE_VERSION_SYNC_QUEUE)) {
+    db.createObjectStore(STORE_VERSION_SYNC_QUEUE, { keyPath: 'id' });
   }
 }
 

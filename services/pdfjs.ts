@@ -9,6 +9,9 @@ import workerSrc from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
  */
 let pdfjsPromise: Promise<typeof import('pdfjs-dist')> | null = null;
 
+/** URL del worker, usato anche per il precaricamento offline. */
+export const pdfWorkerUrl = workerSrc;
+
 export function loadPdfJs(): Promise<typeof import('pdfjs-dist')> {
   pdfjsPromise ??= import('pdfjs-dist').then((pdfjs) => {
     pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;

@@ -69,7 +69,7 @@ describe('cronologia versioni con metadati', () => {
     expect(versions).toHaveLength(20);
 
     // Le versioni conservate sono le più recenti.
-    const names = versions.map(version => version.snapshot.name);
+    const names = versions.map(version => version.snapshot?.name);
     expect(names).toContain('Progetto 23');
     expect(names).not.toContain('Progetto di prova');
   });

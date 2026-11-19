@@ -49,15 +49,21 @@ esistente esegui la migrazione più recente dal **SQL Editor**:
   `storage.objects.name`, altrimenti `name` viene risolto come
   `projects.name` e gli upload vengono bloccati. Da eseguire se la migrazione
   granulare era già stata applicata.
+- [`20261119_data_safety.sql`](supabase/migrations/20261119_data_safety.sql)
+  — concorrenza ottimistica per SAL/prezzari (`save_project_parts_v2`),
+  cronologia versioni condivisa (`project_versions`), limite server-side a 20
+  versioni e versione schema leggibile dall'app.
 
 `supabase/schema.sql` contiene già tutto per le installazioni nuove.
 
 ## Verifica
 
 Dopo aver applicato le migrazioni, esegui
-[`supabase/verify_security.sql`](supabase/verify_security.sql) nel **SQL
-Editor**: è un controllo read-only che restituisce `PASS`/`FAIL` per colonne
-granulari, funzioni, privilegi `anon`, RLS e policy Storage.
+[`supabase/verify_security.sql`](supabase/verify_security.sql) e
+[`supabase/verify_data_safety.sql`](supabase/verify_data_safety.sql) nel **SQL
+Editor**: sono controlli read-only che restituiscono `PASS`/`FAIL` per colonne
+granulari, funzioni, privilegi `anon`, RLS, policy Storage, versioni e
+concorrenza.
 
 ## Configurazione (una volta sola)
 

@@ -37,6 +37,7 @@ interface AttachmentRow {
 }
 
 const TABLE = 'project_attachments';
+const MAX_ATTACHMENT_BYTES = 100 * 1024 * 1024;
 
 const makeId = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -156,6 +157,10 @@ export async function addAttachment(
   file: File,
   nodeId?: string
 ): Promise<ProjectAttachment> {
+  if (file.size > MAX_ATTACHMENT_BYTES) {
+    throw new Error('L’allegato supera il limite di 100 MB.');
+  }
+
   const attachment: ProjectAttachment = {
     id: makeId(),
     projectId,

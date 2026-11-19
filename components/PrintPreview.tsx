@@ -95,6 +95,7 @@ interface PrintPreviewProps {
     currentUser: string;
     onClose: () => void;
     initialRFQMode?: boolean;
+    onUpdateProject?: (project: Project) => void;
 }
 
 export const PrintPreview: React.FC<PrintPreviewProps> = ({ 
@@ -103,7 +104,8 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
     activeSalId, 
     currentUser, 
     onClose,
-    initialRFQMode = false
+    initialRFQMode = false,
+    onUpdateProject,
 }) => {
     // Print Mode State (Allows toggling inside preview)
     const [printMode, setPrintMode] = useState<'ESTIMATE' | 'SAL'>(initialEditorMode);
@@ -600,6 +602,29 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
         }
     };
 
+    const handleCompanyLogoUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        event.target.value = '';
+        if (!file || !onUpdateProject) return;
+
+        if (!/^image\/(png|jpeg)$/i.test(file.type)) {
+            setPdfError('Il logo deve essere un PNG o JPEG.');
+            return;
+        }
+        if (file.size > 300 * 1024) {
+            setPdfError('Il logo supera il limite di 300 KB.');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onload = () => {
+            setPdfError(null);
+            onUpdateProject({ ...project, companyLogo: String(reader.result) });
+        };
+        reader.onerror = () => setPdfError('Impossibile leggere il logo.');
+        reader.readAsDataURL(file);
+    };
+
     const buildVectorOptions = () => ({
         document: printDocument,
         project,
@@ -1080,6 +1105,30 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                               <input className="w-full border p-2 rounded" value={printAppTitle} onChange={e => setPrintAppTitle(e.target.value)} />
                           </div>
                           <div>
+                              <label className="block text-xs font-bold mb-1">Logo aziendale (PNG/JPEG, max 300 KB)</label>
+                              <div className="flex items-center gap-2">
+                                  <input
+                                      type="file"
+                                      accept="image/png,image/jpeg"
+                                      onChange={handleCompanyLogoUpload}
+                                      disabled={!onUpdateProject}
+                                      className="block w-full text-xs text-slate-500 file:mr-2 file:rounded file:border-0 file:bg-slate-100 file:px-2 file:py-1 file:text-xs file:font-semibold"
+                                  />
+                                  {project.companyLogo && onUpdateProject && (
+                                      <button
+                                          type="button"
+                                          onClick={() => onUpdateProject({ ...project, companyLogo: undefined })}
+                                          className="shrink-0 rounded border border-slate-300 px-2 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-50"
+                                      >
+                                          Rimuovi
+                                      </button>
+                                  )}
+                              </div>
+                              {project.companyLogo && (
+                                  <img src={project.companyLogo} alt="Logo aziendale" className="mt-2 h-10 w-auto rounded border border-slate-200 bg-white p-1" />
+                              )}
+                          </div>
+                          <div>
                               <label className="block text-xs font-bold mb-1">Titolo Documento</label>
                               <input className="w-full border p-2 rounded" value={printDocTitle} onChange={e => setPrintDocTitle(e.target.value)} />
                           </div>
@@ -1330,7 +1379,16 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
                                <div className="flex justify-between items-start">
                                    <div className="max-w-[60%]">
                                        <div className="flex items-center gap-2">
-                                           {printAppTitle.trim().toLowerCase() === 'stimia' ? (
+                                           {project.companyLogo ? (
+                                               <>
+                                                   <img
+                                                       src={project.companyLogo}
+                                                       alt="Logo aziendale"
+                                                       style={{ height: printFontSizeTitle * 1.8, width: 'auto' }}
+                                                   />
+                                                   <h1 className="font-bold tracking-wide leading-tight" style={{ fontSize: printFontSizeTitle, color: printColorTitle, fontFamily: printTitleFont }}>{printAppTitle}</h1>
+                                               </>
+                                           ) : printAppTitle.trim().toLowerCase() === 'stimia' ? (
                                                <img
                                                    src={`${import.meta.env.BASE_URL}brand/stimia-lockup.png`}
                                                    alt={printAppTitle}

@@ -357,24 +357,41 @@ const ensureBrandAssets = async (): Promise<void> => {
 const headerContent = (options: VectorPdfOptions) => {
   const s = resolveStyles(options);
   const isDefaultTitle = s.appTitle.trim().toLowerCase() === 'stimia';
+  const companyLogo = /^data:image\/(png|jpeg)/i.test(options.project.companyLogo || '')
+    ? options.project.companyLogo
+    : null;
 
-  const titleNode = isDefaultTitle && brandLockupDataUrl
-    ? { image: 'brandLockup', height: 28 }
-    : isDefaultTitle && brandBadgeDataUrl
-      ? {
-          columns: [
-            { width: 30, stack: [{ image: 'brandBadge', width: 30 }] },
-            {
-              width: '*',
-              text: s.appTitle,
-              bold: true,
-              fontSize: pxToPt(s.sizes.title),
-              color: s.colors.title,
-              margin: [8, 2, 0, 0],
-            },
-          ],
-        }
-      : { text: s.appTitle, bold: true, fontSize: pxToPt(s.sizes.title), color: s.colors.title };
+  const titleNode = companyLogo
+    ? {
+        columns: [
+          { width: 'auto', stack: [{ image: 'companyLogo', height: 28 }] },
+          {
+            width: '*',
+            text: s.appTitle,
+            bold: true,
+            fontSize: pxToPt(s.sizes.title),
+            color: s.colors.title,
+            margin: [8, 2, 0, 0],
+          },
+        ],
+      }
+    : isDefaultTitle && brandLockupDataUrl
+      ? { image: 'brandLockup', height: 28 }
+      : isDefaultTitle && brandBadgeDataUrl
+        ? {
+            columns: [
+              { width: 30, stack: [{ image: 'brandBadge', width: 30 }] },
+              {
+                width: '*',
+                text: s.appTitle,
+                bold: true,
+                fontSize: pxToPt(s.sizes.title),
+                color: s.colors.title,
+                margin: [8, 2, 0, 0],
+              },
+            ],
+          }
+        : { text: s.appTitle, bold: true, fontSize: pxToPt(s.sizes.title), color: s.colors.title };
 
   return {
     stack: [
@@ -1001,6 +1018,11 @@ const loadPdfMake = async (): Promise<any> => {
   return window.pdfMake;
 };
 
+/** Precarica il motore PDF (script + font) per l'uso offline. */
+export async function prefetchPdfMake(): Promise<void> {
+  await loadPdfMake();
+}
+
 export interface VectorPdfSaveResult {
   status: 'saved' | 'downloaded' | 'cancelled';
   url?: string;
@@ -1135,6 +1157,9 @@ export async function createVectorPdfBlob(options: VectorPdfOptions): Promise<Ge
   const brandImages = {
     ...(brandBadgeDataUrl ? { brandBadge: brandBadgeDataUrl } : {}),
     ...(brandLockupDataUrl ? { brandLockup: brandLockupDataUrl } : {}),
+    ...(/^data:image\/(png|jpeg)/i.test(project.companyLogo || '')
+      ? { companyLogo: project.companyLogo }
+      : {}),
   };
 
   const docDefinition: any = {

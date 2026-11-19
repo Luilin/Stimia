@@ -17,6 +17,10 @@ import { SiteManagementModal } from './SiteManagementModal';
 import { ToolbarMenu, ToolbarMenuSection } from './ToolbarMenu';
 import { saveProjectVersion } from '../services/projectVersions';
 import { externalizePriceBooks, hydratePriceBooks } from '../services/priceBooksStorage';
+import { SYNC_CONFLICT_EVENT } from '../services/syncUtils';
+import { clearSyncConflict, getSyncConflict, subscribeSyncStatus } from '../services/syncStatus';
+import { fetchRemoteProject, forceSaveProject } from '../services/supabaseProjects';
+import { getCurrentUser } from '../services/auth';
 import { Plus, Save, Users, FileSpreadsheet, ArrowLeft, Trash2, FolderOpen, Printer, Pencil, X, Search, AlertTriangle, AlertCircle, GripVertical, Undo, Redo, PanelLeftClose, PanelLeftOpen, ArrowDownAZ, List, CheckCircle2, Calculator, AlignEndVertical, Ruler, BookOpen, ChevronLeft, Hash, Eye, EyeOff, Shield, ShieldCheck, Building2, ChevronDown, ChevronUp, Scale, FlaskConical, BarChart3, FileText, Wrench, Paperclip, Landmark, Briefcase, MoveHorizontal, Menu as MenuIcon } from 'lucide-react';
 import { saveProject } from '../services/storage';
 
@@ -183,6 +187,8 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
 
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [syncConflict, setSyncConflict] = useState(false);
+  const [resolvingConflict, setResolvingConflict] = useState(false);
   
   // Editor Mode & SAL State
   const [editorMode, setEditorMode] = useState<EditorMode>('ESTIMATE');
@@ -341,6 +347,104 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
     };
   }, [isReadOnly]);
 
+  // Conflitti di sincronizzazione: una modifica concorrente non viene mai
+  // sovrascritta in silenzio.
+  useEffect(() => {
+    let active = true;
+    const refresh = async () => {
+      const conflict = await getSyncConflict(project.id);
+      if (active) setSyncConflict(Boolean(conflict));
+    };
+
+    void refresh();
+    const unsubscribe = subscribeSyncStatus(() => { void refresh(); });
+    const onConflict = (event: Event) => {
+      const detail = (event as CustomEvent<{ projectId?: string }>).detail;
+      if (!detail?.projectId || detail.projectId === project.id) {
+        void refresh();
+      }
+    };
+    window.addEventListener(SYNC_CONFLICT_EVENT, onConflict);
+
+    return () => {
+      active = false;
+      unsubscribe();
+      window.removeEventListener(SYNC_CONFLICT_EVENT, onConflict);
+    };
+  }, [project.id]);
+
+  const handleReloadCloud = async () => {
+    if (!window.confirm('Ricaricare la versione cloud? Le modifiche locali restano nella cronologia.')) return;
+    setResolvingConflict(true);
+    try {
+      await saveProjectVersion(project, 'Prima del ripristino cloud', true).catch(() => null);
+      const remote = await fetchRemoteProject(project.id);
+      if (!remote) {
+        notify('Il progetto non è più presente sul cloud.', 'warning');
+        return;
+      }
+      setProject(remote);
+      setHistory([remote]);
+      setHistoryIndex(0);
+      await clearSyncConflict(project.id);
+      setSyncConflict(false);
+      notify('Versione cloud ricaricata.', 'success');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Ricarica non riuscita.', 'error');
+    } finally {
+      setResolvingConflict(false);
+    }
+  };
+
+  const handleForceCloud = async () => {
+    if (!window.confirm('Sovrascrivere la versione cloud con le modifiche locali?')) return;
+    setResolvingConflict(true);
+    try {
+      await saveProjectVersion(project, 'Prima della sovrascrittura', true).catch(() => null);
+      await forceSaveProject(project);
+      await clearSyncConflict(project.id);
+      setSyncConflict(false);
+      notify('Modifiche locali sincronizzate sul cloud.', 'success');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Sovrascrittura non riuscita.', 'error');
+    } finally {
+      setResolvingConflict(false);
+    }
+  };
+
+  const handleConflictCopy = async () => {
+    setResolvingConflict(true);
+    try {
+      const user = getCurrentUser();
+      const copy = {
+        ...(JSON.parse(JSON.stringify(project)) as Project),
+        id: typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `copy_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        name: `${project.name} (copia conflitto)`,
+        userId: user?.uid,
+        createdBy: user?.email || project.createdBy,
+        lastModified: Date.now(),
+      } as Project;
+
+      delete copy.collaborators;
+      delete copy.memberPermissions;
+      delete copy.sharedWithEmails;
+
+      await saveProject(copy);
+      await clearSyncConflict(project.id);
+      setSyncConflict(false);
+      setProject(copy);
+      setHistory([copy]);
+      setHistoryIndex(0);
+      notify('Copia salvata come nuovo computo.', 'success');
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Copia non riuscita.', 'error');
+    } finally {
+      setResolvingConflict(false);
+    }
+  };
+
   // Snapshot automatico della cronologia versioni (throttle nel servizio).
   useEffect(() => {
     if (isReadOnly) return;
@@ -434,7 +538,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
       if (isDittaRole && isDittaMode) return true;
 
       let allowed = true;
-      if (next.rootWBS !== project.rootWBS || next.name !== project.name || next.description !== project.description) {
+      if (next.rootWBS !== project.rootWBS || next.name !== project.name || next.description !== project.description || next.companyLogo !== project.companyLogo) {
         if (!canWrite) allowed = false;
       }
       if (next.sals !== project.sals) {
@@ -1691,6 +1795,42 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
   
   return (
     <div className={`flex flex-col h-full ${isResizing ? 'cursor-col-resize select-none' : ''}`}>
+      {syncConflict && (
+        <div className="shrink-0 border-b border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 no-print">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex min-w-0 items-center gap-2">
+              <AlertTriangle size={14} className="shrink-0" />
+              <span className="font-semibold">Modifiche non sincronizzate: il progetto è cambiato sul cloud.</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={handleReloadCloud}
+                disabled={resolvingConflict}
+                className="rounded-md border border-amber-300 bg-white px-2.5 py-1 font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+              >
+                Ricarica cloud
+              </button>
+              <button
+                type="button"
+                onClick={handleForceCloud}
+                disabled={resolvingConflict}
+                className="rounded-md border border-amber-300 bg-amber-700 px-2.5 py-1 font-semibold text-white hover:bg-amber-800 disabled:opacity-50"
+              >
+                Sovrascrivi
+              </button>
+              <button
+                type="button"
+                onClick={handleConflictCopy}
+                disabled={resolvingConflict}
+                className="rounded-md border border-amber-300 bg-white px-2.5 py-1 font-semibold text-amber-800 hover:bg-amber-100 disabled:opacity-50"
+              >
+                Salva copia
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
        <datalist id="uoms">{customUoms.map(u => <option key={u} value={u} />)}</datalist>
 
       {/* Main Header */}
@@ -2981,6 +3121,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                 setIsRfqPrintMode(false);
             }} 
             initialRFQMode={isRfqPrintMode}
+            onUpdateProject={updateProject}
           />
       )}
 

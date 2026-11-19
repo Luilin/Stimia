@@ -106,8 +106,8 @@ supabase/migrations/          Migrazioni incrementali per progetti esistenti
 
 I progetti sono salvati in **IndexedDB** (database `stimia_files`: store
 `projects`, `priceBooks`, `attachments`, `versions`, `syncQueue`, `versionMeta`,
-`syncMeta`). Al primo avvio i dati del vecchio database vengono copiati
-automaticamente nel nuovo.
+`syncMeta`, `syncConflicts`, `versionSyncQueue`). Al primo avvio i dati del
+vecchio database vengono copiati automaticamente nel nuovo.
 
 In `localStorage` restano solo sessione e preferenze:
 
@@ -160,6 +160,17 @@ location.reload();
   icone PWA hanno varianti `maskable` dedicate.
 - L'editor salva automaticamente il progetto circa un secondo dopo ogni modifica,
   accoda i salvataggi per progetto e salva anche alla chiusura della scheda.
+- I salvataggi cloud usano `updated_at` come token di concorrenza: se un altro
+  utente ha modificato il progetto, il client non sovrascrive nulla e mostra le
+  opzioni **Ricarica cloud / Sovrascrivi / Salva copia**.
+- La cronologia versioni è condivisa nel cloud (max 20 per progetto) e ha una
+  cache locale; gli snapshot completi vengono scaricati solo al ripristino.
+- Il backup completo è in **ZIP** e include progetti, prezzari, allegati e
+  versioni. Resta supportato anche l'import dei vecchi backup JSON.
+- Il logo aziendale (PNG/JPEG, max 300 KB) si imposta dal pannello Stampa e
+  viene usato nell'intestazione di anteprima e PDF.
+- Il pulsante **Prepara uso offline** nell'Account precarica Excel, PDF,
+  backup ZIP e motore di stampa.
 - In modalità Supabase si scaricano solo i payload dei progetti nuovi o cambiati
   (`updated_at`); i metadati delle versioni evitano di rileggere gli snapshot.
 - In modalità Supabase allegati e prezzari grandi vengono sincronizzati nel
@@ -171,11 +182,12 @@ location.reload();
 
 - Autenticazione e dati cloud usano Supabase Auth con policy **RLS**; il bucket
   `stimia-files` è privato e accessibile solo ai membri del progetto.
-- Le policy distinguono proprietario, editor e viewer. Con la migrazione
+- Le policy distinguono proprietario, editor e viewer. Con le migrazioni
   [`20261118_granular_permissions.sql`](supabase/migrations/20261118_granular_permissions.sql)
-  anche i permessi SAL e prezzari sono applicati dal database tramite RPC
-  dedicate; la ditta resta un editor applicativo perché compila l'offerta
-  dentro la struttura del computo.
+  e [`20261119_data_safety.sql`](supabase/migrations/20261119_data_safety.sql)
+  i permessi SAL/prezzari, la concorrenza e la cronologia versioni sono
+  applicati dal database; la ditta resta un editor applicativo perché compila
+  l'offerta dentro la struttura del computo.
 - I documenti generati (HTML di stampa, XML FatturaPA, ICS, EML, PDF) passano
   da escape o sanitizzazione dei valori inseriti dall'utente.
 - L'eliminazione dell'account cancella i dati cloud e la copia locale nel

@@ -661,7 +661,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                   <div>
                     <h3 className="text-sm font-bold text-slate-800">Cronologia versioni</h3>
                     <p className="mt-0.5 text-xs text-slate-500">
-                      Snapshot automatici ogni 10 minuti (max 20 per progetto) e salvataggi manuali. Restano in questo browser.
+                      Snapshot automatici ogni 10 minuti (max 20 per progetto) e salvataggi manuali. Cronologia condivisa nel cloud, con cache locale.
                     </p>
                   </div>
                   <div className="flex flex-wrap gap-2">

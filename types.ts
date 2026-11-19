@@ -328,6 +328,7 @@ export interface Project {
   sharedWithEmails?: string[]; // Array of emails for querying
   priceBooks?: PriceBook[]; // List of Price Books associated with the project
   contractorDetails?: ContractorDetails; // Detagli della ditta offerente per computo in bianco
+  companyLogo?: string; // Logo aziendale (data URL PNG/JPEG) per intestazioni PDF
   offers?: ContractorOffer[]; // Offerte ricevute dalle ditte per la comparazione
   offerComparisonSettings?: OfferComparisonSettings; // Criterio e opzioni di comparazione
   schedule?: ProjectSchedule; // Cronoprogramma lavori

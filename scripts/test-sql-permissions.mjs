@@ -1,11 +1,19 @@
 import fs from 'node:fs';
 import { PGlite } from '@electric-sql/pglite';
 
-const migration = fs.readFileSync('supabase/migrations/20261118_granular_permissions.sql', 'utf8');
+const granularMigration = fs.readFileSync('supabase/migrations/20261118_granular_permissions.sql', 'utf8');
+const dataSafetyMigration = fs.readFileSync('supabase/migrations/20261119_data_safety.sql', 'utf8');
 const db = new PGlite();
 
 const OWNER_UID = '11111111-1111-1111-1111-111111111111';
 const MEMBER_UID = '22222222-2222-2222-2222-222222222222';
+const UIDS = {
+  'writer@test.it': '22222222-2222-2222-2222-222222222222',
+  'sal@test.it': '33333333-3333-3333-3333-333333333333',
+  'pb@test.it': '44444444-4444-4444-4444-444444444444',
+  'viewer@test.it': '55555555-5555-5555-5555-555555555555',
+  'ditta@test.it': '66666666-6666-6666-6666-666666666666',
+};
 
 let passed = 0;
 let failed = 0;
@@ -47,7 +55,7 @@ async function superuser() {
   await db.exec("set test.uid = ''");
 }
 
-async function asMember(email, uid = MEMBER_UID) {
+async function asMember(email, uid = UIDS[email] ?? MEMBER_UID) {
   await db.exec('reset role');
   await db.exec('set role authenticated');
   await db.exec(`set test.email = '${email}'`);
@@ -95,6 +103,15 @@ try {
     grant execute on function auth.uid() to anon, authenticated;
     grant execute on function auth.jwt() to anon, authenticated;
 
+    create table auth.users (id uuid primary key);
+    insert into auth.users (id) values
+      ('${OWNER_UID}'),
+      ('${UIDS['writer@test.it']}'),
+      ('${UIDS['sal@test.it']}'),
+      ('${UIDS['pb@test.it']}'),
+      ('${UIDS['viewer@test.it']}'),
+      ('${UIDS['ditta@test.it']}');
+
     create table public.projects (
       id text primary key,
       owner_id uuid not null,
@@ -113,6 +130,21 @@ try {
       created_at timestamptz not null default now(),
       primary key (project_id, email)
     );
+
+    create function public.is_project_member(p_project_id text)
+    returns boolean
+    language sql
+    security definer
+    set search_path = public
+    stable
+    as $$
+      select exists (
+        select 1 from public.project_members m
+        where m.project_id = p_project_id
+          and lower(m.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      );
+    $$;
+    grant execute on function public.is_project_member(text) to authenticated;
 
     create table public.project_attachments (
       id text primary key,
@@ -164,7 +196,8 @@ try {
     grant select on public.project_members to authenticated;
   `);
 
-  await db.exec(migration);
+  await db.exec(granularMigration);
+  await db.exec(dataSafetyMigration);
 
   await db.exec(`
     insert into public.projects (id, owner_id, owner_email, name, last_modified, payload)
@@ -285,6 +318,113 @@ try {
   ok('JSON null: SAL invariati', JSON.stringify(p.sals) === JSON.stringify([{ id: 's4' }]), JSON.stringify(p.sals));
   ok('JSON null: prezzari aggiornati', JSON.stringify(p.priceBooks) === JSON.stringify([{ id: 'b4' }]), JSON.stringify(p.priceBooks));
 
+  // --- Concorrenza RPC v2 -------------------------------------------
+  for (const [email, expected] of [
+    ['writer@test.it', true],
+    ['sal@test.it', true],
+    ['pb@test.it', true],
+    ['viewer@test.it', false],
+    ['ditta@test.it', true],
+  ]) {
+    await asMember(email);
+    const result = await db.query("select public.is_project_contributor('p1') as v");
+    ok(`is_project_contributor ${email}`, result.rows[0].v === expected, String(result.rows[0].v));
+  }
+
+  await superuser();
+  const tokenResult = await db.query("select updated_at::text as token from public.projects where id = 'p1'");
+  const token = tokenResult.rows[0].token;
+
+  await asMember('sal@test.it');
+  const v2Save = await db.query(`select public.save_project_parts_v2('p1', '[{"id":"s6"}]'::jsonb, null, '${token}'::timestamptz) as updated_at`);
+  ok('RPC v2: salvataggio con token aggiornato', Boolean(v2Save.rows[0].updated_at), JSON.stringify(v2Save.rows[0]));
+
+  await expectError(
+    'RPC v2: token vecchio → conflitto',
+    `select public.save_project_parts_v2('p1', '[{"id":"s7"}]'::jsonb, null, '${token}'::timestamptz)`,
+    /Conflitto di sincronizzazione/i,
+  );
+
+  await superuser();
+  const newTokenResult = await db.query("select updated_at::text as token from public.projects where id = 'p1'");
+  const newToken = newTokenResult.rows[0].token;
+
+  await asMember('writer@test.it');
+  const v2Writer = await db.query(`select public.save_project_parts_v2('p1', '[{"id":"s8"}]'::jsonb, '[{"id":"b8"}]'::jsonb, '${newToken}'::timestamptz) as updated_at`);
+  ok('RPC v2: writer con token aggiornato', Boolean(v2Writer.rows[0].updated_at), JSON.stringify(v2Writer.rows[0]));
+
+  await asMember('sal@test.it');
+  await expectError(
+    'RPC v2: SAL-only non può salvare i prezzari',
+    "select public.save_project_parts_v2('p1', null, '[{\"id\":\"b9\"}]'::jsonb, null)",
+    /Permessi insufficienti per i prezzari/i,
+  );
+
+  // --- Cronologia versioni condivisa ---------------------------------
+  await asMember('writer@test.it');
+  await expectSuccess(
+    'Versioni: writer crea una versione',
+    "insert into public.project_versions(id, project_id, reason, hash, stats, snapshot) values ('v-writer', 'p1', 'Test', 'h1', '{}'::jsonb, '{}'::jsonb)",
+  );
+
+  await asMember('sal@test.it');
+  await expectSuccess(
+    'Versioni: SAL-only crea una versione',
+    "insert into public.project_versions(id, project_id, reason, hash, stats, snapshot) values ('v-sal', 'p1', 'Test', 'h2', '{}'::jsonb, '{}'::jsonb)",
+  );
+
+  await asMember('viewer@test.it');
+  await expectError(
+    'Versioni: viewer non crea versioni',
+    "insert into public.project_versions(id, project_id, reason, hash, stats, snapshot) values ('v-viewer', 'p1', 'Test', 'h3', '{}'::jsonb, '{}'::jsonb)",
+    /row-level security/i,
+  );
+  const viewerVersions = await db.query("select count(*)::int as n from public.project_versions");
+  ok('Versioni: il viewer le può leggere', viewerVersions.rows[0].n >= 2, String(viewerVersions.rows[0].n));
+
+  await asAnon();
+  await expectError(
+    'Versioni: anon non crea versioni',
+    "insert into public.project_versions(id, project_id, reason, hash, stats, snapshot) values ('v-anon', 'p1', 'Test', 'h4', '{}'::jsonb, '{}'::jsonb)",
+    /permission denied|row-level security/i,
+  );
+
+  await asMember('sal@test.it');
+  await db.query("delete from public.project_versions where id = 'v-writer'");
+  await superuser();
+  const foreignStill = await db.query("select count(*)::int as n from public.project_versions where id = 'v-writer'");
+  ok('Versioni: SAL-only non cancella versioni altrui', foreignStill.rows[0].n === 1, String(foreignStill.rows[0].n));
+
+  await asMember('sal@test.it');
+  await db.query("delete from public.project_versions where id = 'v-sal'");
+  await superuser();
+  const ownStill = await db.query("select count(*)::int as n from public.project_versions where id = 'v-sal'");
+  ok('Versioni: SAL-only cancella la propria versione', ownStill.rows[0].n === 0, String(ownStill.rows[0].n));
+
+  await asMember('writer@test.it');
+  for (let index = 10; index < 34; index += 1) {
+    await db.query(
+      `insert into public.project_versions(id, project_id, created_at, reason, hash, stats, snapshot)
+       values ('v-${index}', 'p1', now() + interval '${index} seconds', 'Test', 'h', '{}'::jsonb, '{}'::jsonb)`,
+    );
+  }
+  const pruned = await db.query("select count(*)::int as n, bool_or(id = 'v-33') as has_newest, bool_or(id = 'v-10') as has_oldest from public.project_versions");
+  ok('Versioni: limite di 20 applicato', pruned.rows[0].n === 20, String(pruned.rows[0].n));
+  ok('Versioni: conserva la più recente', pruned.rows[0].has_newest === true, String(pruned.rows[0].has_newest));
+  ok('Versioni: elimina la più vecchia', pruned.rows[0].has_oldest === false, String(pruned.rows[0].has_oldest));
+
+  // --- Versione schema ----------------------------------------------
+  await asMember('writer@test.it');
+  const schemaVersion = await db.query("select public.stimia_schema_version() as v");
+  ok('Versione schema leggibile', schemaVersion.rows[0].v === 4, String(schemaVersion.rows[0].v));
+
+  await asAnon();
+  await expectError(
+    'Versione schema non accessibile ad anon',
+    "select public.stimia_schema_version()",
+    /permission denied/i,
+  );
+
   // --- RLS update ----------------------------------------------------
   await superuser();
   await db.exec("update public.projects set name = 'P1' where id = 'p1'");
@@ -368,6 +508,11 @@ try {
   const verification = await db.query(fs.readFileSync('supabase/verify_security.sql', 'utf8'));
   for (const row of verification.rows) {
     ok(`Verifica: ${row.controllo}`, row.risultato === 'PASS', String(row.risultato));
+  }
+
+  const dataVerification = await db.query(fs.readFileSync('supabase/verify_data_safety.sql', 'utf8'));
+  for (const row of dataVerification.rows) {
+    ok(`Verifica dati: ${row.controllo}`, row.risultato === 'PASS', String(row.risultato));
   }
 
   // La verifica deve accorgersi se viene reintrodotta la vecchia policy errata.

@@ -14,12 +14,16 @@ import { supabase } from './supabase';
 import * as localProjects from './localProjects';
 import {
   MEMBER_SIGNATURE_PREFIX,
+  SyncConflictError,
   classifySyncError,
+  isSyncConflictError,
   membersSignature,
   projectMemberPermissions,
   projectSaveMode,
 } from './syncUtils';
 import type { DbMemberPermissions } from './syncUtils';
+import { flushVersionQueue, saveProjectVersion } from './projectVersions';
+import { clearSyncConflict, markSyncCompleted, recordSyncConflict } from './syncStatus';
 
 /**
  * Archivio progetti su Supabase (Postgres).
@@ -198,7 +202,10 @@ function clearMembersSignature(projectId: string): void {
   }
 }
 
-export async function upsertRemoteProject(project: Project): Promise<void> {
+export async function upsertRemoteProject(
+  project: Project,
+  expectedUpdatedAt: string | null = null,
+): Promise<void> {
   const client = requireClient();
   const user = getCurrentUser();
   if (!user) throw new Error('Not authenticated');
@@ -219,32 +226,48 @@ export async function upsertRemoteProject(project: Project): Promise<void> {
     row.owner_email = user.email || null;
   }
 
+  const storeUpdatedAt = async (updatedAt?: string) => {
+    if (!updatedAt) return;
+    await idbPut<SyncMeta>(STORE_SYNC_META, { projectId: project.id, updatedAt });
+  };
+
   if (isOwner) {
-    const { data, error } = await client
-      .from('projects')
-      .upsert(row, { onConflict: 'id' })
-      .select('updated_at')
-      .single();
-    if (error) throw new Error(error.message);
-    if (data?.updated_at) {
-      await idbPut<SyncMeta>(STORE_SYNC_META, { projectId: project.id, updatedAt: data.updated_at });
+    if (expectedUpdatedAt) {
+      const { data, error } = await client
+        .from('projects')
+        .update(row)
+        .eq('id', project.id)
+        .eq('updated_at', expectedUpdatedAt)
+        .select('updated_at');
+      if (error) throw new Error(error.message);
+      if (!data || data.length === 0) throw new SyncConflictError(project.id);
+      await storeUpdatedAt((data[0] as { updated_at?: string } | undefined)?.updated_at);
+    } else {
+      const { data, error } = await client
+        .from('projects')
+        .insert(row)
+        .select('updated_at')
+        .single();
+      if (error) {
+        if (error.code === '23505') throw new SyncConflictError(project.id);
+        throw new Error(error.message);
+      }
+      await storeUpdatedAt(data?.updated_at);
     }
   } else {
-    // Un collaboratore non può creare il progetto (né diventarne proprietario):
-    // può solo aggiornare una riga già condivisa.
+    // Un collaboratore non può creare il progetto: senza token si rischia di
+    // sovrascrivere modifiche altrui.
+    if (!expectedUpdatedAt) throw new SyncConflictError(project.id);
+
     const { data, error } = await client
       .from('projects')
       .update(row)
       .eq('id', project.id)
+      .eq('updated_at', expectedUpdatedAt)
       .select('updated_at');
     if (error) throw new Error(error.message);
-    if (!data || data.length === 0) {
-      throw new Error('Progetto non disponibile sul cloud.');
-    }
-    const updatedAt = (data[0] as { updated_at?: string } | undefined)?.updated_at;
-    if (updatedAt) {
-      await idbPut<SyncMeta>(STORE_SYNC_META, { projectId: project.id, updatedAt });
-    }
+    if (!data || data.length === 0) throw new SyncConflictError(project.id);
+    await storeUpdatedAt((data[0] as { updated_at?: string } | undefined)?.updated_at);
   }
 
   // I membri possono essere gestiti solo dal proprietario del progetto.
@@ -335,6 +358,7 @@ export async function deleteRemoteProject(projectId: string): Promise<void> {
 
   clearMembersSignature(projectId);
   await idbDelete(STORE_SYNC_META, projectId);
+  await clearSyncConflict(projectId);
 }
 
 const isMissingRpcError = (error: { code?: string; message?: string } | null): boolean =>
@@ -344,7 +368,11 @@ const isMissingRpcError = (error: { code?: string; message?: string } | null): b
  * Aggiorna solo le parti consentite (SAL e/o prezzari) tramite RPC.
  * Il database controlla i permessi e non sovrascrive il resto del progetto.
  */
-async function saveRestrictedParts(project: Project, permissions: DbMemberPermissions): Promise<void> {
+async function saveRestrictedParts(
+  project: Project,
+  permissions: DbMemberPermissions,
+  expectedUpdatedAt: string | null,
+): Promise<void> {
   const client = requireClient();
   const sals = permissions.canEditSAL ? (project.sals ?? null) : null;
   const priceBooks = permissions.canEditPriceBooks ? (project.priceBooks ?? null) : null;
@@ -354,13 +382,34 @@ async function saveRestrictedParts(project: Project, permissions: DbMemberPermis
     return;
   }
 
-  const { data, error } = await client.rpc('save_project_parts', {
+  const baseArgs = {
     p_project_id: project.id,
     p_sals: sals,
     p_price_books: priceBooks,
+  };
+
+  let data: unknown;
+  let error: { code?: string; message?: string } | null = null;
+
+  const v2 = await client.rpc('save_project_parts_v2', {
+    ...baseArgs,
+    p_expected_updated_at: expectedUpdatedAt,
   });
+  data = v2.data;
+  error = v2.error;
+
+  if (error && isMissingRpcError(error)) {
+    // Database non ancora migrato alla v2: usa la v1 senza controllo versione.
+    const v1 = await client.rpc('save_project_parts', baseArgs);
+    data = v1.data;
+    error = v1.error;
+  }
 
   if (error) {
+    if (error.code === '40001' || /conflitto di sincronizzazione/i.test(error.message || '')) {
+      throw new SyncConflictError(project.id);
+    }
+
     if (isMissingRpcError(error)) {
       // Distingue "database non migrato" (nessuna colonna granulare) da una
       // semplice cache PostgREST non aggiornata: nel secondo caso si ritenta.
@@ -396,23 +445,78 @@ async function saveRestrictedParts(project: Project, permissions: DbMemberPermis
  * completo per proprietario/editor, RPC dedicata per chi può modificare solo
  * SAL o prezzari.
  */
-export async function saveRemoteProject(project: Project): Promise<void> {
+export async function saveRemoteProject(
+  project: Project,
+  expectedUpdatedAt: string | null = null,
+): Promise<void> {
   const user = getCurrentUser();
   if (!user) throw new Error('Not authenticated');
 
   const mode = projectSaveMode(project, user.uid, user.email);
 
   if (mode === 'full') {
-    await upsertRemoteProject(project);
+    await upsertRemoteProject(project, expectedUpdatedAt);
     return;
   }
 
   if (mode === 'parts') {
-    await saveRestrictedParts(project, projectMemberPermissions(project, user.email));
+    await saveRestrictedParts(
+      project,
+      projectMemberPermissions(project, user.email),
+      expectedUpdatedAt,
+    );
     return;
   }
 
   throw new Error('Permessi insufficienti per salvare il progetto.');
+}
+
+async function handleSyncConflict(project: Project): Promise<void> {
+  await recordSyncConflict(project.id);
+  try {
+    // Conserva comunque la modifica locale nella cronologia.
+    await saveProjectVersion(project, 'Conflitto locale', true);
+  } catch (error) {
+    console.warn('Versione locale di conflitto non salvata:', error);
+  }
+}
+
+/** Usa l'ultima versione cloud come base e sovrascrive il progetto. */
+export async function forceSaveProject(project: Project): Promise<void> {
+  const client = requireClient();
+  const { data, error } = await client
+    .from('projects')
+    .select('updated_at')
+    .eq('id', project.id)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+
+  const latest = (data as { updated_at?: string } | null)?.updated_at ?? null;
+  await saveRemoteProject(project, latest);
+  await clearSyncConflict(project.id);
+  markSyncCompleted();
+}
+
+/** Scarica il progetto aggiornato dal cloud e aggiorna la cache locale. */
+export async function fetchRemoteProject(projectId: string): Promise<Project | null> {
+  const client = requireClient();
+  const { data, error } = await client
+    .from('projects')
+    .select('id, owner_id, owner_email, name, last_modified, updated_at, payload')
+    .eq('id', projectId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+
+  const row = data as ProjectRow & { updated_at?: string };
+  const project = toProject(row);
+  await idbPut(STORE_PROJECTS, JSON.parse(JSON.stringify(project)) as Project);
+  if (row.updated_at) {
+    await idbPut<SyncMeta>(STORE_SYNC_META, { projectId, updatedAt: row.updated_at });
+  }
+  return project;
 }
 
 export async function enqueueSync(projectId: string, op: 'upsert' | 'delete'): Promise<void> {
@@ -429,15 +533,26 @@ export async function flushSyncQueue(): Promise<void> {
   const entries = await idbGetAll<SyncQueueEntry>(STORE_SYNC_QUEUE);
 
   for (const entry of entries) {
+    let project: Project | undefined;
     try {
       if (entry.op === 'delete') {
         await deleteRemoteProject(entry.projectId);
       } else {
-        const project = await idbGet<Project>(STORE_PROJECTS, entry.projectId);
-        if (project) await saveRemoteProject(project);
+        project = await idbGet<Project>(STORE_PROJECTS, entry.projectId);
+        if (project) {
+          const expected = (await idbGet<SyncMeta>(STORE_SYNC_META, entry.projectId))?.updatedAt ?? null;
+          await saveRemoteProject(project, expected);
+        }
       }
       await idbDelete(STORE_SYNC_QUEUE, entry.projectId);
+      markSyncCompleted();
     } catch (error) {
+      if (isSyncConflictError(error) && project) {
+        await handleSyncConflict(project);
+        await idbDelete(STORE_SYNC_QUEUE, entry.projectId);
+        continue;
+      }
+
       const message = error instanceof Error ? error.message : String(error);
       const kind = classifySyncError(message, online);
 
@@ -467,6 +582,8 @@ export async function flushSyncQueue(): Promise<void> {
       console.warn(`Sincronizzazione rimandata (tentativo ${attempts}/${MAX_SYNC_ATTEMPTS}):`, error);
     }
   }
+
+  await flushVersionQueue().catch(() => undefined);
 }
 
 export async function getProjectsWithCache(): Promise<{ data: Project[]; error: any }> {
@@ -523,14 +640,21 @@ export async function getProjectsWithCache(): Promise<{ data: Project[]; error: 
 }
 
 export async function saveProjectWithCache(project: Project): Promise<void> {
+  const expected = (await idbGet<SyncMeta>(STORE_SYNC_META, project.id))?.updatedAt ?? null;
+
   // Prima in locale (immediato e funziona offline)...
   await localProjects.saveProject(project);
 
   try {
     // ...poi sul database SQL.
-    await saveRemoteProject(project);
+    await saveRemoteProject(project, expected);
     await idbDelete(STORE_SYNC_QUEUE, project.id);
+    markSyncCompleted();
   } catch (error) {
+    if (isSyncConflictError(error)) {
+      await handleSyncConflict(project);
+      return;
+    }
     console.warn('Salvataggio sul cloud rimandato:', error);
     await enqueueSync(project.id, 'upsert');
   }

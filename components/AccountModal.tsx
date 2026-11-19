@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { KeyRound, LogOut, MailCheck, ShieldAlert, Trash2, X, Loader2, HardDrive } from 'lucide-react';
 import { SUPABASE_MODE } from '../services/mode';
+import { prefetchOfflineDependencies } from '../services/offlinePrefetch';
 import {
   deleteAccount,
   resendConfirmation,
@@ -22,6 +23,7 @@ export const AccountModal: React.FC<Props> = ({ email, onClose, onSignedOut }) =
   const [deleteConfirm, setDeleteConfirm] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<Message>(null);
+  const [offlineMessage, setOfflineMessage] = useState<string | null>(null);
   const [storageLabel, setStorageLabel] = useState('');
 
   useEffect(() => {
@@ -88,6 +90,24 @@ export const AccountModal: React.FC<Props> = ({ email, onClose, onSignedOut }) =
     }
   };
 
+  const handleOfflinePrefetch = async () => {
+    setBusy('offline');
+    setOfflineMessage(null);
+    try {
+      const results = await prefetchOfflineDependencies();
+      const failed = results.filter(result => !result.ok).map(result => result.label);
+      setOfflineMessage(
+        failed.length === 0
+          ? 'Tutti i componenti sono pronti per l’uso offline.'
+          : `Non precaricati: ${failed.join(', ')}. Riprova con una connessione stabile.`,
+      );
+    } catch {
+      setOfflineMessage('Precaricamento offline non riuscito.');
+    } finally {
+      setBusy(null);
+    }
+  };
+
   const handleDelete = async () => {
     if (deleteConfirm.trim().toUpperCase() !== 'ELIMINA') {
       setMessage({ type: 'error', text: 'Scrivi ELIMINA per confermare.' });
@@ -132,6 +152,22 @@ export const AccountModal: React.FC<Props> = ({ email, onClose, onSignedOut }) =
               <HardDrive size={13} /> {storageLabel}
             </p>
           )}
+
+          <section className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <h3 className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-800">
+              <HardDrive size={15} className="text-emerald-600" /> Uso offline
+            </h3>
+            <p className="mb-2 text-[11px] text-slate-500">
+              Precarica Excel, PDF, backup ZIP e il motore di stampa per usarli anche senza connessione.
+            </p>
+            <button type="button" onClick={handleOfflinePrefetch} disabled={busy !== null} className="btn btn-neutral w-full">
+              {busy === 'offline' ? <Loader2 size={16} className="animate-spin" /> : <HardDrive size={16} />}
+              Prepara uso offline
+            </button>
+            {offlineMessage && (
+              <p className="mt-2 text-[11px] text-slate-600">{offlineMessage}</p>
+            )}
+          </section>
 
           {!SUPABASE_MODE ? (
             <p className="rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">

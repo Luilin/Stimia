@@ -136,8 +136,26 @@ export function projectSaveMode(project: Project, userId: string, email: string)
 
 export type SyncErrorKind = 'permanent' | 'offline' | 'retry';
 
+/** Evento emesso quando un salvataggio è stato rifiutato per concorrenza. */
+export const SYNC_CONFLICT_EVENT = 'stimia:sync-conflict';
+
+export class SyncConflictError extends Error {
+  readonly projectId: string;
+
+  constructor(projectId: string) {
+    super('Conflitto di sincronizzazione');
+    this.name = 'SyncConflictError';
+    this.projectId = projectId;
+  }
+}
+
+export function isSyncConflictError(error: unknown): error is SyncConflictError {
+  return error instanceof SyncConflictError
+    || (error instanceof Error && /conflitto di sincronizzazione/i.test(error.message));
+}
+
 const PERMANENT_PATTERN =
-  /row-level security|non disponibile sul cloud|violates row-level|42501|permessi insufficienti/i;
+  /row-level security|non disponibile sul cloud|violates row-level|42501|permessi insufficienti|foreign key/i;
 const NETWORK_PATTERN =
   /failed to fetch|networkerror|network error|fetch failed|load failed|timed? ?out|enotfound|econn|offline/i;
 

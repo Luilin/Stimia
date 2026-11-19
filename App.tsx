@@ -2,6 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Project, ViewState, EffectivePermissions, FULL_PERMISSIONS, MemberPermission } from './types';
 import { AccountModal } from './components/AccountModal';
+import { SyncStatusBadge } from './components/SyncStatusBadge';
 import { TeamManagementModal } from './components/TeamManagementModal';
 import { getProjects, saveProject, deleteProject } from './services/storage';
 import { deleteProjectAttachments } from './services/attachments';
@@ -10,13 +11,13 @@ import {
   deleteProjectPriceBooks,
   duplicateProjectPriceBooks,
   externalizePriceBooks,
-  hydratePriceBooks,
 } from './services/priceBooksStorage';
-import { Users, LogIn, Plus, Trash2, FolderOpen, X, Loader2, AlertCircle, HardDrive, Pencil, Download, Upload, Copy, WifiOff, Smartphone, Cloud, UserRound, Search } from 'lucide-react';
+import { Users, LogIn, Plus, Trash2, FolderOpen, X, Loader2, AlertCircle, HardDrive, Pencil, Download, Upload, Copy, WifiOff, Smartphone, UserRound, Search } from 'lucide-react';
 import { AuthUser, onAuthStateChanged, signInWithEmail, signInWithGoogle, signOut, isPasswordRecoveryRedirect, onPasswordRecovery, sendPasswordReset, updatePassword } from './services/auth';
 import { SUPABASE_MODE } from './services/mode';
 import { flushSyncQueue } from './services/supabaseProjects';
 import { isGoogleAuthAvailable } from './services/supabase';
+import { EXPECTED_SCHEMA_VERSION, getRemoteSchemaVersion } from './services/schemaVersion';
 
 // L'editor è il pezzo più pesante: lo carichiamo solo quando serve, con
 // prefetch in background per mantenere l'uso offline.
@@ -142,6 +143,7 @@ export default function App() {
 
   // Backup / ripristino
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
+  const [schemaWarning, setSchemaWarning] = useState<string | null>(null);
   const backupInputRef = React.useRef<HTMLInputElement>(null);
 
   // PWA / stato rete
@@ -200,6 +202,25 @@ export default function App() {
       window.removeEventListener('beforeinstallprompt', beforeInstall);
     };
   }, []);
+
+  // Verifica che il database Supabase abbia le migrazioni più recenti.
+  useEffect(() => {
+    if (!SUPABASE_MODE || !currentUser || !isOnline) return;
+
+    let active = true;
+    getRemoteSchemaVersion().then(version => {
+      if (!active) return;
+      if (version === null) {
+        setSchemaWarning('Il database non espone la versione dello schema: applica le migrazioni Supabase più recenti.');
+      } else if (version < EXPECTED_SCHEMA_VERSION) {
+        setSchemaWarning(`Il database è alla versione ${version}, il client richiede la ${EXPECTED_SCHEMA_VERSION}.`);
+      } else {
+        setSchemaWarning(null);
+      }
+    });
+
+    return () => { active = false; };
+  }, [currentUser, isOnline]);
 
   const loadProjects = async () => {
     setLoading(true);
@@ -326,25 +347,19 @@ export default function App() {
 
   const handleExportBackup = async () => {
     try {
-      const fullProjects = await Promise.all(projects.map(async project => ({
-        ...project,
-        priceBooks: await hydratePriceBooks(project.id, project.priceBooks || []),
-      })));
-
-      const payload = {
-        app: 'Stimia',
-        version: 1,
-        exportedAt: new Date().toISOString(),
-        projects: fullProjects,
-      };
-      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      setBackupMessage('Preparazione del backup completo…');
+      const { exportFullBackup } = await import('./services/fullBackup');
+      const blob = await exportFullBackup(projects);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `stimia_backup_${new Date().toISOString().slice(0, 10)}.json`;
+      link.download = `stimia_backup_${new Date().toISOString().slice(0, 10)}.zip`;
       link.click();
       URL.revokeObjectURL(url);
-      setBackupMessage(`Backup esportato: ${projects.length} ${projects.length === 1 ? 'computo' : 'computi'}.`);
+      const size = blob.size > 1024 * 1024
+        ? `${(blob.size / (1024 * 1024)).toFixed(1)} MB`
+        : `${Math.max(1, Math.round(blob.size / 1024))} KB`;
+      setBackupMessage(`Backup completo esportato: ${projects.length} ${projects.length === 1 ? 'computo' : 'computi'} (${size}).`);
     } catch (error) {
       console.error('Errore export backup:', error);
       setBackupMessage('Errore durante l’esportazione del backup.');
@@ -357,6 +372,17 @@ export default function App() {
     if (!file || !currentUser) return;
 
     try {
+      if (/\.zip$/i.test(file.name) || file.type === 'application/zip') {
+        setBackupMessage('Ripristino del backup completo…');
+        const { importFullBackup } = await import('./services/fullBackup');
+        const result = await importFullBackup(file);
+        await loadProjects();
+        setBackupMessage(
+          `Ripristinati ${result.projects} computi, ${result.attachments} allegati e ${result.versions} versioni.`,
+        );
+        return;
+      }
+
       const raw = await file.text();
       const parsed = JSON.parse(raw);
       const incoming: Project[] = Array.isArray(parsed) ? parsed : (Array.isArray(parsed?.projects) ? parsed.projects : []);
@@ -774,20 +800,16 @@ export default function App() {
             </div>
             <div className="flex items-center gap-2 sm:gap-3">
               {SUPABASE_MODE && (
-                <span
-                  className={`hidden items-center gap-1 rounded-full border px-2.5 py-1 text-[11px] font-semibold sm:inline-flex ${
-                    isOnline
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                      : 'border-amber-200 bg-amber-50 text-amber-700'
-                  }`}
-                  title={
-                    isOnline
-                      ? 'Progetti sincronizzati con il database SQL (Supabase)'
-                      : 'Offline: le modifiche restano in coda e vengono sincronizzate al ritorno online'
-                  }
-                >
-                  <Cloud size={12} /> {isOnline ? 'Cloud SQL' : 'Offline'}
-                </span>
+                <SyncStatusBadge
+                  projects={projects}
+                  onOpenProject={(projectId) => {
+                    const project = projects.find(item => item.id === projectId);
+                    if (project) {
+                      setSelectedProject(project);
+                      setViewState(ViewState.EDITOR);
+                    }
+                  }}
+                />
               )}
               {!SUPABASE_MODE && (
                 <span className="hidden items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600 sm:inline-flex" title="Dati salvati solo in questo browser">
@@ -805,13 +827,13 @@ export default function App() {
                 </button>
               )}
               <span className="hidden max-w-[220px] truncate text-xs text-slate-500 md:inline">Utente: <b className="text-slate-700">{currentUser?.email}</b></span>
-              <button onClick={handleExportBackup} className="btn btn-neutral" title="Esporta un backup JSON di tutti i computi" aria-label="Esporta backup">
+              <button onClick={handleExportBackup} className="btn btn-neutral" title="Esporta un backup completo (progetti, prezzari, allegati, versioni)" aria-label="Esporta backup">
                 <Download size={16} /> <span className="hidden sm:inline">Backup</span>
               </button>
-              <button onClick={() => backupInputRef.current?.click()} className="btn btn-neutral" title="Ripristina i computi da un backup JSON" aria-label="Ripristina da backup">
+              <button onClick={() => backupInputRef.current?.click()} className="btn btn-neutral" title="Ripristina da un backup ZIP o JSON" aria-label="Ripristina da backup">
                 <Upload size={16} /> <span className="hidden sm:inline">Ripristina</span>
               </button>
-              <input ref={backupInputRef} type="file" accept=".json,application/json" className="hidden" onChange={handleImportBackup} />
+              <input ref={backupInputRef} type="file" accept=".json,.zip,application/json,application/zip" className="hidden" onChange={handleImportBackup} />
               <button onClick={() => setShowAccountModal(true)} className="btn btn-neutral" title="Account, password e sicurezza" aria-label="Account">
                 <UserRound size={16} /> <span className="hidden sm:inline">Account</span>
               </button>
@@ -821,6 +843,12 @@ export default function App() {
         </header>
 
         <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 sm:py-8">
+          {schemaWarning && (
+            <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2 text-xs text-amber-900">
+              <b>Database non aggiornato.</b> {schemaWarning}{' '}
+              Applica la migrazione <code className="font-mono">20261119_data_safety.sql</code>.
+            </div>
+          )}
           {backupMessage && (
             <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs text-emerald-800">
               <span>{backupMessage}</span>
