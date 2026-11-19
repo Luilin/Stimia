@@ -253,6 +253,17 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tab, project.id]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
   const handleCreateVersion = async () => {
     if (!canEdit) return;
     setVersionsBusy(true);
@@ -392,7 +403,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
   };
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 p-2 backdrop-blur-sm sm:p-6">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 p-2 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-labelledby="tools-title">
       <div className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-2xl">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-800 bg-slate-900 px-4 py-3 text-white sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
@@ -400,7 +411,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
               <Wrench size={20} />
             </div>
             <div className="min-w-0">
-              <h2 className="truncate text-base font-bold leading-tight sm:text-lg">Strumenti del computo</h2>
+              <h2 id="tools-title" className="truncate text-base font-bold leading-tight sm:text-lg">Strumenti del computo</h2>
               <p className="truncate text-xs text-slate-300">{project.name}</p>
             </div>
           </div>
@@ -414,28 +425,32 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
             <button
               type="button"
               onClick={() => setTab('revision')}
-              className={`flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors ${tab === 'revision' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+              aria-pressed={tab === 'revision'}
+              className={`flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors ${tab === 'revision' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
             >
               <Percent size={14} /> Revisione prezzi
             </button>
             <button
               type="button"
               onClick={() => setTab('variants')}
-              className={`flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors ${tab === 'variants' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+              aria-pressed={tab === 'variants'}
+              className={`flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors ${tab === 'variants' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
             >
               <Plus size={14} /> Varianti e perizie
             </button>
             <button
               type="button"
               onClick={() => setTab('versions')}
-              className={`flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors ${tab === 'versions' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+              aria-pressed={tab === 'versions'}
+              className={`flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors ${tab === 'versions' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
             >
               <History size={14} /> Versioni
             </button>
             <button
               type="button"
               onClick={() => setTab('interop')}
-              className={`flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors ${tab === 'interop' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+              aria-pressed={tab === 'interop'}
+              className={`flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition-colors ${tab === 'interop' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
             >
               <ArrowLeftRight size={14} /> XPWE / Interscambio
             </button>
@@ -453,8 +468,9 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
 
                 <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <div>
-                    <label className="mb-1 block text-[11px] font-semibold text-slate-600">Variazione percentuale (%)</label>
+                    <label htmlFor="tools-revision-percent" className="mb-1 block text-[11px] font-semibold text-slate-600">Variazione percentuale (%)</label>
                     <input
+                      id="tools-revision-percent"
                       type="number"
                       step="0.01"
                       value={percent}
@@ -465,8 +481,9 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-[11px] font-semibold text-slate-600">Ambito</label>
+                    <label htmlFor="tools-revision-scope" className="mb-1 block text-[11px] font-semibold text-slate-600">Ambito</label>
                     <select
+                      id="tools-revision-scope"
                       value={scope}
                       disabled={!canEdit || !selectedNode}
                       onChange={e => setScope(e.target.value as 'all' | 'selected')}
@@ -490,18 +507,18 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
 
                 <div className="mt-4 grid grid-cols-1 gap-2 rounded-lg bg-slate-50 p-3 text-xs sm:grid-cols-3">
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Voci interessate</div>
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Voci interessate</div>
                     <div className="font-bold text-slate-800">{revisionTotals.count}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Totale attuale</div>
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Totale attuale</div>
                     <div className="font-bold text-slate-800">{currency(revisionTotals.current)}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Nuovo totale</div>
+                    <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Nuovo totale</div>
                     <div className="font-bold text-emerald-700">
                       {currency(revisionTotals.next)}
-                      <span className={`ml-1 text-[11px] ${revisionTotals.delta < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                      <span className={`ml-1 text-[11px] ${revisionTotals.delta < 0 ? 'text-red-600' : 'text-emerald-700'}`}>
                         ({revisionTotals.delta >= 0 ? '+' : ''}{currency(revisionTotals.delta)})
                       </span>
                     </div>
@@ -509,7 +526,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                 </div>
               </div>
 
-              <p className="flex items-start gap-1.5 text-[11px] text-slate-400">
+              <p className="flex items-start gap-1.5 text-[11px] text-slate-500">
                 <Info size={13} className="mt-0.5 shrink-0" />
                 La revisione modifica i prezzi unitari del computo. Le offerte delle ditte e le analisi prezzi eventualmente presenti non vengono ricalcolate automaticamente.
               </p>
@@ -523,29 +540,29 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                   </h3>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="mb-1 block text-[11px] font-semibold text-slate-600">Codice *</label>
-                      <input value={variantForm.code} disabled={!canEdit} onChange={e => setVariantForm({ ...variantForm, code: e.target.value })} className="field" placeholder="VAR 01" />
+                      <label htmlFor="variant-code" className="mb-1 block text-[11px] font-semibold text-slate-600">Codice *</label>
+                      <input id="variant-code" value={variantForm.code} disabled={!canEdit} onChange={e => setVariantForm({ ...variantForm, code: e.target.value })} className="field" placeholder="VAR 01" />
                     </div>
                     <div>
-                      <label className="mb-1 block text-[11px] font-semibold text-slate-600">Tipo</label>
-                      <select value={variantForm.type} disabled={!canEdit} onChange={e => setVariantForm({ ...variantForm, type: e.target.value as 'variante' | 'perizia' })} className="field">
+                      <label htmlFor="variant-type" className="mb-1 block text-[11px] font-semibold text-slate-600">Tipo</label>
+                      <select id="variant-type" value={variantForm.type} disabled={!canEdit} onChange={e => setVariantForm({ ...variantForm, type: e.target.value as 'variante' | 'perizia' })} className="field">
                         <option value="variante">Variante</option>
                         <option value="perizia">Perizia suppletiva</option>
                       </select>
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1 block text-[11px] font-semibold text-slate-600">Oggetto *</label>
-                    <input value={variantForm.name} disabled={!canEdit} onChange={e => setVariantForm({ ...variantForm, name: e.target.value })} className="field" placeholder="Descrizione sintetica" />
+                    <label htmlFor="variant-name" className="mb-1 block text-[11px] font-semibold text-slate-600">Oggetto *</label>
+                    <input id="variant-name" value={variantForm.name} disabled={!canEdit} onChange={e => setVariantForm({ ...variantForm, name: e.target.value })} className="field" placeholder="Descrizione sintetica" />
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="mb-1 block text-[11px] font-semibold text-slate-600">Data</label>
-                      <input type="date" value={variantForm.date} disabled={!canEdit} onChange={e => setVariantForm({ ...variantForm, date: e.target.value })} className="field" />
+                      <label htmlFor="variant-date" className="mb-1 block text-[11px] font-semibold text-slate-600">Data</label>
+                      <input id="variant-date" type="date" value={variantForm.date} disabled={!canEdit} onChange={e => setVariantForm({ ...variantForm, date: e.target.value })} className="field" />
                     </div>
                     <div>
-                      <label className="mb-1 block text-[11px] font-semibold text-slate-600">Stato</label>
-                      <select value={variantForm.status} disabled={!canEdit} onChange={e => setVariantForm({ ...variantForm, status: e.target.value as 'bozza' | 'approvata' | 'respinta' })} className="field">
+                      <label htmlFor="variant-status" className="mb-1 block text-[11px] font-semibold text-slate-600">Stato</label>
+                      <select id="variant-status" value={variantForm.status} disabled={!canEdit} onChange={e => setVariantForm({ ...variantForm, status: e.target.value as 'bozza' | 'approvata' | 'respinta' })} className="field">
                         <option value="bozza">Bozza</option>
                         <option value="approvata">Approvata</option>
                         <option value="respinta">Respinta</option>
@@ -553,19 +570,19 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1 block text-[11px] font-semibold text-slate-600">Collegamento WBS</label>
-                    <select value={variantForm.wbsNodeId} disabled={!canEdit} onChange={e => handleVariantNodeChange(e.target.value)} className="field">
+                    <label htmlFor="variant-wbs" className="mb-1 block text-[11px] font-semibold text-slate-600">Collegamento WBS</label>
+                    <select id="variant-wbs" value={variantForm.wbsNodeId} disabled={!canEdit} onChange={e => handleVariantNodeChange(e.target.value)} className="field">
                       <option value="">— Nessun collegamento —</option>
                       {nodeOptions.map(option => <option key={option.id} value={option.id}>{option.path}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label className="mb-1 block text-[11px] font-semibold text-slate-600">Importo (€)</label>
-                    <input type="number" step="0.01" value={variantForm.amount} disabled={!canEdit} onChange={e => setVariantForm({ ...variantForm, amount: e.target.value })} className="field" placeholder="0,00" />
+                    <label htmlFor="variant-amount" className="mb-1 block text-[11px] font-semibold text-slate-600">Importo (€)</label>
+                    <input id="variant-amount" type="number" step="0.01" value={variantForm.amount} disabled={!canEdit} onChange={e => setVariantForm({ ...variantForm, amount: e.target.value })} className="field" placeholder="0,00" />
                   </div>
                   <div>
-                    <label className="mb-1 block text-[11px] font-semibold text-slate-600">Note</label>
-                    <textarea value={variantForm.notes} disabled={!canEdit} onChange={e => setVariantForm({ ...variantForm, notes: e.target.value })} className="field h-16 resize-none" />
+                    <label htmlFor="variant-notes" className="mb-1 block text-[11px] font-semibold text-slate-600">Note</label>
+                    <textarea id="variant-notes" value={variantForm.notes} disabled={!canEdit} onChange={e => setVariantForm({ ...variantForm, notes: e.target.value })} className="field h-16 resize-none" />
                   </div>
                   <div className="flex items-center gap-2">
                     <button type="button" onClick={handleSaveVariant} disabled={!canEdit || !variantForm.code.trim() || !variantForm.name.trim()} className="btn btn-primary flex-1">
@@ -580,11 +597,11 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                 <div className="space-y-3 lg:col-span-3">
                   <div className="grid grid-cols-2 gap-2">
                     <div className="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Varianti/perizie</div>
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Varianti/perizie</div>
                       <div className="text-lg font-bold text-slate-800">{variants.length}</div>
                     </div>
                     <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 shadow-sm">
-                      <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-600">Importo complessivo</div>
+                      <div className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">Importo complessivo</div>
                       <div className="text-lg font-bold text-emerald-800">{currency(variantsTotal)}</div>
                     </div>
                   </div>
@@ -607,7 +624,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                             <td className="px-2 py-1.5 font-mono text-[11px] text-slate-500">{variant.code}</td>
                             <td className="px-2 py-1.5 text-slate-700">
                               <div className="font-semibold">{variant.name}</div>
-                              <div className="text-[10px] text-slate-400">{weekDay(variant.date)}{variant.wbsNodeId ? ' · collegata WBS' : ''}</div>
+                              <div className="text-[10px] text-slate-500">{weekDay(variant.date)}{variant.wbsNodeId ? ' · collegata WBS' : ''}</div>
                             </td>
                             <td className="px-2 py-1.5 text-slate-600">{variant.type === 'perizia' ? 'Perizia' : 'Variante'}</td>
                             <td className="px-2 py-1.5 text-right font-semibold text-slate-700">{currency(variant.amount || 0)}</td>
@@ -625,10 +642,10 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                             <td className="px-2 py-1.5 text-right">
                               {canEdit && (
                                 <div className="flex justify-end gap-0.5">
-                                  <button type="button" onClick={() => handleEditVariant(variant)} className="rounded p-1 text-slate-400 hover:bg-emerald-50 hover:text-emerald-700" title="Modifica">
+                                  <button type="button" onClick={() => handleEditVariant(variant)} className="rounded p-1 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700" title="Modifica" aria-label={`Modifica ${variant.code}`}>
                                     <Pencil size={13} />
                                   </button>
-                                  <button type="button" onClick={() => handleDeleteVariant(variant)} className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" title="Elimina">
+                                  <button type="button" onClick={() => handleDeleteVariant(variant)} className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600" title="Elimina" aria-label={`Elimina ${variant.code}`}>
                                     <Trash2 size={13} />
                                   </button>
                                 </div>
@@ -638,7 +655,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                         ))}
                         {variants.length === 0 && (
                           <tr>
-                            <td colSpan={6} className="px-3 py-8 text-center text-slate-400">
+                            <td colSpan={6} className="px-3 py-8 text-center text-slate-500">
                               Nessuna variante o perizia registrata.
                             </td>
                           </tr>
@@ -647,7 +664,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                     </table>
                   </div>
 
-                  <p className="flex items-start gap-1.5 text-[11px] text-slate-400">
+                  <p className="flex items-start gap-1.5 text-[11px] text-slate-500">
                     <AlertTriangle size={13} className="mt-0.5 shrink-0" />
                     L'importo può essere inserito manualmente oppure ricavato collegando una categoria WBS del computo.
                   </p>
@@ -689,7 +706,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                   <div className="px-4 py-12 text-center">
                     <History size={28} className="mx-auto mb-2 text-slate-300" />
                     <p className="text-sm font-semibold text-slate-600">Nessuna versione salvata</p>
-                    <p className="text-xs text-slate-400">La prima versione viene creata automaticamente alla modifica del computo.</p>
+                    <p className="text-xs text-slate-500">La prima versione viene creata automaticamente alla modifica del computo.</p>
                   </div>
                 ) : (
                   <table className="min-w-full text-xs">
@@ -708,7 +725,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                         <tr key={version.id} className="border-t border-slate-100">
                           <td className="px-3 py-2 text-slate-600">
                             <div className="flex items-center gap-1.5">
-                              <Clock size={12} className="text-slate-400" />
+                              <Clock size={12} className="text-slate-500" />
                               {new Date(version.createdAt).toLocaleString('it-IT')}
                             </div>
                           </td>
@@ -722,8 +739,9 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                                 type="button"
                                 onClick={() => handleRestoreVersion(version)}
                                 disabled={!canEdit || versionsBusy}
-                                className="rounded p-1 text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-40"
+                                className="rounded p-1 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 disabled:opacity-40"
                                 title="Ripristina"
+                                aria-label={`Ripristina versione del ${new Date(version.createdAt).toLocaleString('it-IT')}`}
                               >
                                 <RotateCcw size={14} />
                               </button>
@@ -731,8 +749,9 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                                 type="button"
                                 onClick={() => handleDeleteVersion(version)}
                                 disabled={!canEdit}
-                                className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
+                                className="rounded p-1 text-slate-500 hover:bg-red-50 hover:text-red-600 disabled:opacity-40"
                                 title="Elimina"
+                                aria-label={`Elimina versione del ${new Date(version.createdAt).toLocaleString('it-IT')}`}
                               >
                                 <Trash2 size={14} />
                               </button>
@@ -745,7 +764,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                 )}
               </div>
 
-              <p className="flex items-start gap-1.5 text-[11px] text-slate-400">
+              <p className="flex items-start gap-1.5 text-[11px] text-slate-500">
                 <Info size={13} className="mt-0.5 shrink-0" />
                 Prima di un ripristino viene salvata automaticamente la situazione corrente, così puoi annullare l’operazione.
               </p>
@@ -755,7 +774,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
               <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
                 <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                   <div className="flex items-center gap-2">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
                       <Download size={18} />
                     </div>
                     <div>
@@ -776,7 +795,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
 
                 <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                   <div className="flex items-center gap-2">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
                       <Upload size={18} />
                     </div>
                     <div>
@@ -790,6 +809,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                     type="file"
                     accept=".xpwe,.xml,application/xml,text/xml"
                     className="hidden"
+                    aria-label="Seleziona file XPWE o XML da importare"
                     onChange={handleImportFile}
                   />
                   <button
@@ -807,15 +827,15 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                       <div className="text-xs font-bold text-emerald-800">Anteprima importazione</div>
                       <div className="mt-2 grid grid-cols-3 gap-2 text-center">
                         <div className="rounded bg-white p-2">
-                          <div className="text-[10px] font-bold uppercase text-slate-400">Prezzi</div>
+                          <div className="text-[10px] font-bold uppercase text-slate-500">Prezzi</div>
                           <div className="font-bold text-slate-800">{pendingImport.counts.prices}</div>
                         </div>
                         <div className="rounded bg-white p-2">
-                          <div className="text-[10px] font-bold uppercase text-slate-400">Voci</div>
+                          <div className="text-[10px] font-bold uppercase text-slate-500">Voci</div>
                           <div className="font-bold text-slate-800">{pendingImport.counts.entries}</div>
                         </div>
                         <div className="rounded bg-white p-2">
-                          <div className="text-[10px] font-bold uppercase text-slate-400">Misure</div>
+                          <div className="text-[10px] font-bold uppercase text-slate-500">Misure</div>
                           <div className="font-bold text-slate-800">{pendingImport.counts.measurements}</div>
                         </div>
                       </div>
@@ -824,9 +844,9 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                         <p className="mt-2 truncate text-[11px] text-slate-600">File: {pendingImport.projectName}</p>
                       )}
 
-                      <label className="mt-2 block">
+                      <label className="mt-2 block" htmlFor="import-mode">
                         <span className="mb-1 block text-[11px] font-semibold text-slate-600">Modalità</span>
-                        <select value={importMode} onChange={e => setImportMode(e.target.value as 'append' | 'replace')} className="field">
+                        <select id="import-mode" value={importMode} onChange={e => setImportMode(e.target.value as 'append' | 'replace')} className="field">
                           <option value="append">Aggiungi al computo esistente</option>
                           <option value="replace">Sostituisci il computo</option>
                         </select>
@@ -860,7 +880,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
               <div className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div className="flex items-center gap-2">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-600">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-50 text-emerald-700">
                       <BookOpen size={18} />
                     </div>
                     <div>
@@ -887,6 +907,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                   type="file"
                   accept=".xpwe,.xml,application/xml,text/xml"
                   className="hidden"
+                  aria-label="Seleziona prezzario XPWE da importare"
                   onChange={handleImportPriceBook}
                 />
 
@@ -898,7 +919,7 @@ export const ToolsModal: React.FC<Props> = ({ project, selectedNode, canEdit, on
                 )}
               </div>
 
-              <p className="flex items-start gap-1.5 text-[11px] text-slate-400">
+              <p className="flex items-start gap-1.5 text-[11px] text-slate-500">
                 <Info size={13} className="mt-0.5 shrink-0" />
                 XPWE è un formato di interscambio XML. L’import è tollerante e riconosce i nodi standard di elenco prezzi, voci di computo e WBS. Verifica sempre il risultato nel software di destinazione.
               </p>

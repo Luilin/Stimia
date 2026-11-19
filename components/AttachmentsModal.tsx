@@ -92,6 +92,17 @@ export const AttachmentsModal: React.FC<Props> = ({ project, canEdit, canExport,
     return () => URL.revokeObjectURL(url);
   }, [preview]);
 
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      if (preview) setPreview(null);
+      else onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [preview, onClose]);
+
   const filtered = useMemo(
     () => attachments.filter(item => !nodeFilter || item.nodeId === nodeFilter),
     [attachments, nodeFilter]
@@ -152,7 +163,7 @@ export const AttachmentsModal: React.FC<Props> = ({ project, canEdit, canExport,
   };
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 p-2 backdrop-blur-sm sm:p-6">
+    <div className="fixed inset-0 z-[150] flex items-center justify-center bg-slate-900/60 p-2 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-labelledby="attachments-title">
       <div className="flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-slate-50 shadow-2xl">
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-800 bg-slate-900 px-4 py-3 text-white sm:px-6">
           <div className="flex min-w-0 items-center gap-3">
@@ -160,7 +171,7 @@ export const AttachmentsModal: React.FC<Props> = ({ project, canEdit, canExport,
               <Paperclip size={20} />
             </div>
             <div className="min-w-0">
-              <h2 className="truncate text-base font-bold leading-tight sm:text-lg">Allegati del progetto</h2>
+              <h2 id="attachments-title" className="truncate text-base font-bold leading-tight sm:text-lg">Allegati del progetto</h2>
               <p className="truncate text-xs text-slate-300">{project.name} · {attachments.length} file</p>
             </div>
           </div>
@@ -180,9 +191,9 @@ export const AttachmentsModal: React.FC<Props> = ({ project, canEdit, canExport,
                   : 'I file restano nel browser (IndexedDB).'}
               </p>
 
-              <label className="block">
+              <label className="block" htmlFor="attachment-node">
                 <span className="mb-1 block text-[11px] font-semibold text-slate-600">Collega a una categoria (opzionale)</span>
-                <select value={uploadNodeId} disabled={!canEdit} onChange={e => setUploadNodeId(e.target.value)} className="field">
+                <select id="attachment-node" value={uploadNodeId} disabled={!canEdit} onChange={e => setUploadNodeId(e.target.value)} className="field">
                   <option value="">— Nessun collegamento —</option>
                   {nodeOptions.map(option => (
                     <option key={option.id} value={option.id}>
@@ -197,6 +208,7 @@ export const AttachmentsModal: React.FC<Props> = ({ project, canEdit, canExport,
                 type="file"
                 multiple
                 className="hidden"
+                aria-label="Seleziona file da caricare"
                 onChange={e => handleFiles(e.target.files)}
               />
               <button
@@ -229,6 +241,7 @@ export const AttachmentsModal: React.FC<Props> = ({ project, canEdit, canExport,
                   onChange={e => setCloudUrl(e.target.value)}
                   onBlur={saveCloudUrl}
                   placeholder="https://onedrive.live.com/..."
+                  aria-label="Link della cartella cloud"
                   className="field mt-2 text-xs"
                 />
                 <div className="mt-2 flex gap-2">
@@ -246,7 +259,7 @@ export const AttachmentsModal: React.FC<Props> = ({ project, canEdit, canExport,
                   <Paperclip size={15} className="text-slate-400" />
                   <span className="text-xs font-bold text-slate-700">{filtered.length} allegati</span>
                 </div>
-                <select value={nodeFilter} onChange={e => setNodeFilter(e.target.value)} className="field ml-auto h-8 w-auto min-w-[200px] py-0 text-xs">
+                <select value={nodeFilter} onChange={e => setNodeFilter(e.target.value)} aria-label="Filtra allegati per categoria" className="field ml-auto h-8 w-auto min-w-[200px] py-0 text-xs">
                   <option value="">Tutte le categorie</option>
                   {nodeOptions.map(option => (
                     <option key={option.id} value={option.id}>{option.path}</option>
@@ -263,7 +276,7 @@ export const AttachmentsModal: React.FC<Props> = ({ project, canEdit, canExport,
                   <div className="px-4 py-12 text-center">
                     <Paperclip size={28} className="mx-auto mb-2 text-slate-300" />
                     <p className="text-sm font-semibold text-slate-600">Nessun allegato</p>
-                    <p className="text-xs text-slate-400">Carica il primo documento del progetto.</p>
+                    <p className="text-xs text-slate-500">Carica il primo documento del progetto.</p>
                   </div>
                 ) : (
                   <div className="divide-y divide-slate-100">
@@ -277,18 +290,19 @@ export const AttachmentsModal: React.FC<Props> = ({ project, canEdit, canExport,
                           onClick={() => setPreview(attachment)}
                           className="min-w-0 flex-1 text-left"
                           title="Anteprima"
+                          aria-label={`Anteprima di ${attachment.name}`}
                         >
                           <div className="truncate text-xs font-semibold text-slate-800">{attachment.name}</div>
-                          <div className="truncate text-[10px] text-slate-400">
+                          <div className="truncate text-[10px] text-slate-500">
                             {formatBytes(attachment.size)} · {dateLabel(attachment.createdAt)}
                             {attachment.nodeId ? ` · ${nodeLabel(attachment.nodeId)}` : ''}
                           </div>
                         </button>
-                        <button type="button" onClick={() => downloadAttachment(attachment)} disabled={!canExport} className="rounded p-1.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40" title="Scarica">
+                        <button type="button" onClick={() => downloadAttachment(attachment)} disabled={!canExport} className="rounded p-1.5 text-slate-400 hover:bg-emerald-50 hover:text-emerald-700 disabled:cursor-not-allowed disabled:opacity-40" title="Scarica" aria-label={`Scarica ${attachment.name}`}>
                           <Download size={15} />
                         </button>
                         {canEdit && (
-                          <button type="button" onClick={() => handleDelete(attachment)} className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" title="Elimina">
+                          <button type="button" onClick={() => handleDelete(attachment)} className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600" title="Elimina" aria-label={`Elimina ${attachment.name}`}>
                             <Trash2 size={15} />
                           </button>
                         )}
@@ -298,7 +312,7 @@ export const AttachmentsModal: React.FC<Props> = ({ project, canEdit, canExport,
                 )}
               </div>
 
-              <p className="mt-2 flex items-start gap-1.5 text-[11px] text-slate-400">
+              <p className="mt-2 flex items-start gap-1.5 text-[11px] text-slate-500">
                 <Info size={13} className="mt-0.5 shrink-0" />
                 {cloudFilesEnabled()
                   ? 'Gli allegati sono salvati su Supabase Storage e condivisi con i membri del progetto; la copia locale serve per l’uso offline.'
@@ -314,16 +328,16 @@ export const AttachmentsModal: React.FC<Props> = ({ project, canEdit, canExport,
       </div>
 
       {preview && (
-        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/80 p-3 backdrop-blur-sm" onClick={() => setPreview(null)}>
+        <div className="fixed inset-0 z-[160] flex items-center justify-center bg-slate-900/80 p-3 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="attachment-preview-title" onClick={() => setPreview(null)}>
           <div className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl bg-white shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-2.5">
               <div className="min-w-0">
-                <div className="truncate text-sm font-bold text-slate-800">{preview.name}</div>
-                <div className="text-[10px] text-slate-400">{formatBytes(preview.size)} · {preview.type || 'file'}</div>
+                <div id="attachment-preview-title" className="truncate text-sm font-bold text-slate-800">{preview.name}</div>
+                <div className="text-[10px] text-slate-500">{formatBytes(preview.size)} · {preview.type || 'file'}</div>
               </div>
               <div className="flex items-center gap-1">
-                <button onClick={() => downloadAttachment(preview)} disabled={!canExport} className="btn btn-neutral btn-icon" title="Scarica"><Download size={16} /></button>
-                <button onClick={() => setPreview(null)} className="btn btn-neutral btn-icon" title="Chiudi"><X size={16} /></button>
+                <button onClick={() => downloadAttachment(preview)} disabled={!canExport} className="btn btn-neutral btn-icon" title="Scarica" aria-label={`Scarica ${preview.name}`}><Download size={16} /></button>
+                <button onClick={() => setPreview(null)} className="btn btn-neutral btn-icon" title="Chiudi" aria-label="Chiudi anteprima"><X size={16} /></button>
               </div>
             </div>
             <div className="flex-1 overflow-auto bg-slate-100 p-3">
@@ -337,7 +351,7 @@ export const AttachmentsModal: React.FC<Props> = ({ project, canEdit, canExport,
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <FolderOpen size={40} className="mb-3 text-slate-300" />
                   <p className="text-sm font-semibold text-slate-600">Anteprima non disponibile</p>
-                  <p className="mb-3 text-xs text-slate-400">Scarica il file per aprirlo con il programma adatto.</p>
+                  <p className="mb-3 text-xs text-slate-500">Scarica il file per aprirlo con il programma adatto.</p>
                   <button onClick={() => downloadAttachment(preview)} className="btn btn-primary"><Download size={16} /> Scarica</button>
                 </div>
               )}

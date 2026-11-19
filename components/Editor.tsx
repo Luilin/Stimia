@@ -1794,7 +1794,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
   const handleItemClick = (e: React.MouseEvent, itemId: string) => { e.stopPropagation(); const newSet = new Set(e.ctrlKey || e.metaKey ? selectedItemIds : []); if (newSet.has(itemId)) newSet.delete(itemId); else newSet.add(itemId); setSelectedItemIds(newSet); };
   
   return (
-    <div className={`flex flex-col h-full ${isResizing ? 'cursor-col-resize select-none' : ''}`}>
+    <main className={`flex flex-col h-full ${isResizing ? 'cursor-col-resize select-none' : ''}`}>
       {syncConflict && (
         <div className="shrink-0 border-b border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900 no-print">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1860,7 +1860,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
             </div>
             <div className="hidden items-center gap-2 truncate text-[11px] text-slate-500 sm:flex">
               <span className="truncate">Utente: {currentUser}</span>
-              {!isReadOnly && saving && <span className="flex shrink-0 items-center gap-1 text-emerald-600"><Save size={10} /> Salvataggio...</span>}
+              {!isReadOnly && saving && <span className="flex shrink-0 items-center gap-1 text-emerald-700"><Save size={10} /> Salvataggio...</span>}
             </div>
           </div>
 
@@ -1902,7 +1902,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
             <div className="hidden h-6 w-px shrink-0 bg-slate-200 md:block"></div>
 
             <button onClick={() => setShowPriceBook(!showPriceBook)} className={`btn btn-neutral shrink-0 ${showPriceBook ? '!border-emerald-200 !bg-emerald-50 !text-emerald-700' : ''}`} title="Prezzario">
-                <BookOpen size={16} className={showPriceBook ? 'text-emerald-600' : 'text-slate-500'} />
+                <BookOpen size={16} className={showPriceBook ? 'text-emerald-700' : 'text-slate-500'} />
                 <span className="hidden md:inline">Prezzario</span>
             </button>
 
@@ -2102,7 +2102,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                       <div className="text-right text-gray-400 leading-tight">Q.tà<br/>Residua</div>
                       <div className="text-center text-emerald-400 leading-tight">Rif.<br/>SAL Prec.</div>
                       <div className="text-right text-gray-400 leading-tight">Q.tà<br/>Preced.</div>
-                      <div className="text-right text-emerald-600 font-bold leading-tight">Q.tà<br/>Attuale</div>
+                      <div className="text-right text-emerald-700 font-bold leading-tight">Q.tà<br/>Attuale</div>
                       <div className="text-right">%</div>
                       <div className="text-right leading-tight">Importo<br/>Cumul.</div>
                   </div>
@@ -2230,7 +2230,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                                                <button
                                                    type="button"
                                                    onClick={() => setPriceAnalysisItem(item)}
-                                                   className={`rounded p-1.5 ${item.priceAnalysis ? 'text-emerald-600' : 'text-slate-400'} hover:bg-emerald-50`}
+                                                   className={`rounded p-1.5 ${item.priceAnalysis ? 'text-emerald-700' : 'text-slate-400'} hover:bg-emerald-50`}
                                                    title="Analisi prezzo (EPU)"
                                                    aria-label="Analisi prezzo"
                                                >
@@ -2326,7 +2326,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                                                        <b className={progressPercent > 100 ? 'text-red-600' : 'text-slate-700'}>{progressPercent.toFixed(0)}%</b>
                                                    </div>
                                                    <div className="rounded-lg bg-emerald-50 p-2 text-right">
-                                                       <div className="text-[10px] uppercase text-emerald-600">Importo SAL</div>
+                                                       <div className="text-[10px] uppercase text-emerald-700">Importo SAL</div>
                                                        <b className="text-emerald-900">€ {salAmount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>
                                                    </div>
                                                </div>
@@ -2378,7 +2378,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                                                        />
                                                    </label>
                                                    <div className="rounded-lg bg-emerald-50 p-2 text-right">
-                                                       <div className="text-[10px] font-bold uppercase text-emerald-600">Importo</div>
+                                                       <div className="text-[10px] font-bold uppercase text-emerald-700">Importo</div>
                                                        <b className="text-sm text-emerald-900">€ {item.amount.toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</b>
                                                    </div>
                                                </div>
@@ -2481,7 +2481,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                                            <button type="button" onClick={() => handleMoveItemDirect(index, 'down')} disabled={index >= (selectedNode?.items.length || 0) - 1} className="rounded p-2 text-slate-400 hover:bg-slate-100 disabled:opacity-30" title="Sposta giù" aria-label="Sposta giù">
                                                <ChevronDown size={16} />
                                            </button>
-                                           <button type="button" onClick={() => handleMoveToEnd(item.id)} className="rounded p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-600" title="Sposta in fondo" aria-label="Sposta in fondo">
+                                           <button type="button" onClick={() => handleMoveToEnd(item.id)} className="rounded p-2 text-slate-400 hover:bg-emerald-50 hover:text-emerald-700" title="Sposta in fondo" aria-label="Sposta in fondo">
                                                <AlignEndVertical size={16} />
                                            </button>
                                        </div>
@@ -2654,7 +2654,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                                       </div>
 
                                       <div className="text-right text-xs font-bold tabular-nums">
-                                          <span className={`${progressPercent >= 100 ? 'text-emerald-600' : progressPercent > 100 ? 'text-red-500' : 'text-gray-500'}`}>
+                                          <span className={`${progressPercent >= 100 ? 'text-emerald-700' : progressPercent > 100 ? 'text-red-500' : 'text-gray-500'}`}>
                                               {progressPercent.toFixed(0)}%
                                           </span>
                                       </div>
@@ -2728,7 +2728,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                                   <div className="flex flex-col items-center gap-0.5 pt-1 text-gray-400 group-hover/item:text-gray-600">
                                       <div className="flex items-center gap-0.5">
                                           <div 
-                                              className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-gray-100 rounded text-gray-400 hover:text-emerald-600"
+                                              className="cursor-grab active:cursor-grabbing p-0.5 hover:bg-gray-100 rounded text-gray-400 hover:text-emerald-700"
                                               title="Trascina per riordinare"
                                           >
                                               <GripVertical size={13} />
@@ -2738,7 +2738,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                                                   <button 
                                                       type="button" 
                                                       onClick={(e) => { e.stopPropagation(); handleMoveItemDirect(index, 'up'); }}
-                                                      className="p-0.5 hover:text-emerald-600 hover:bg-gray-100 rounded"
+                                                      className="p-0.5 hover:text-emerald-700 hover:bg-gray-100 rounded"
                                                       title="Sposta su"
                                                   >
                                                       <ChevronUp size={11} />
@@ -2748,7 +2748,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                                                   <button 
                                                       type="button" 
                                                       onClick={(e) => { e.stopPropagation(); handleMoveItemDirect(index, 'down'); }}
-                                                      className="p-0.5 hover:text-emerald-600 hover:bg-gray-100 rounded"
+                                                      className="p-0.5 hover:text-emerald-700 hover:bg-gray-100 rounded"
                                                       title="Sposta giù"
                                                   >
                                                       <ChevronDown size={11} />
@@ -3007,7 +3007,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                                   <div className="flex flex-col gap-1 items-end opacity-0 group-hover:opacity-100 transition-opacity">
                                       <button 
                                         onClick={() => setPriceAnalysisItem(item)}
-                                        className={`p-1 rounded hover:bg-emerald-50 ${item.priceAnalysis ? 'text-emerald-600 hover:text-emerald-700' : 'text-gray-400 hover:text-emerald-600'}`}
+                                        className={`p-1 rounded hover:bg-emerald-50 ${item.priceAnalysis ? 'text-emerald-700 hover:text-emerald-700' : 'text-gray-400 hover:text-emerald-700'}`}
                                         title={item.priceAnalysis ? 'Analisi prezzo (EPU) disponibile — modifica' : 'Analisi prezzo (EPU)'}
                                       >
                                           <FlaskConical size={14} />
@@ -3039,7 +3039,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                               {editorMode === 'SAL' ? `Totale Categoria (SAL: ${activeSal?.name || '-'})` : `Totale Categoria (${selectedNode.items.length} voci)`}
                           </div>
                           {editorMode === 'SAL' && (
-                              <div className="hidden text-xs text-emerald-600 font-bold sm:block">
+                              <div className="hidden text-xs text-emerald-700 font-bold sm:block">
                                   {(() => {
                                       const catEstimateTotal = selectedNode.items.reduce((acc, i) => acc + i.amount, 0);
                                       const catSalTotal = selectedNode.items.reduce((acc, i) => acc + (getSalQty(i.id) * i.price), 0);
@@ -3594,20 +3594,20 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
           <div className={`p-2 rounded-full shrink-0 ${
             toastNotification.type === 'error' ? 'bg-red-100 text-red-600' :
             toastNotification.type === 'warning' ? 'bg-amber-100 text-amber-600' :
-            toastNotification.type === 'success' ? 'bg-emerald-100 text-emerald-600' :
-            'bg-emerald-100 text-emerald-600'
+            toastNotification.type === 'success' ? 'bg-emerald-100 text-emerald-700' :
+            'bg-emerald-100 text-emerald-700'
           }`}>
             <AlertCircle size={18} />
           </div>
           <div className="flex-1 text-xs text-gray-800 font-medium">
             {toastNotification.message}
           </div>
-          <button onClick={() => setToastNotification(null)} className="text-gray-400 hover:text-gray-600 p-1">
+          <button onClick={() => setToastNotification(null)} className="text-gray-400 hover:text-gray-600 p-1" aria-label="Chiudi notifica">
             <X size={14} />
           </button>
         </div>
       )}
 
-    </div>
+    </main>
   );
 };

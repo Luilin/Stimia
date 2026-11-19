@@ -205,6 +205,18 @@ location.reload();
 
 ---
 
+## Accessibilità
+
+- I modali principali (progetti, team, allegati, strumenti, prezzario) usano
+  `role="dialog"`, `aria-modal`, titoli collegati, etichette associate ai campi
+  e nomi accessibili sui pulsanti icona.
+- `Esc` chiude i modali di team, allegati, strumenti e anteprima allegati.
+- I toggle usano `aria-pressed`; i messaggi di stato usano `aria-live`.
+- Contrasto e focus da tastiera sono verificati: le schermate principali
+  raggiungono **100** su Lighthouse Accessibility.
+
+---
+
 ## Risoluzione problemi
 
 **La porta 3000 è occupata**

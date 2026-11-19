@@ -2221,35 +2221,35 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
              <div className="flex-1 mr-2">
                  <div className="flex items-center gap-2 mb-1">
                      <BookOpen className="text-emerald-700" size={18} />
-                     <select value={activeBookId} onChange={(e) => setActiveBookId(e.target.value)} className="font-bold text-gray-800 bg-transparent border-none outline-none focus:ring-0 cursor-pointer text-sm w-full truncate">
+                     <select value={activeBookId} onChange={(e) => setActiveBookId(e.target.value)} aria-label="Prezzario attivo" className="font-bold text-gray-800 bg-transparent border-none outline-none focus:ring-0 cursor-pointer text-sm w-full truncate">
                          {books.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
                      </select>
-                     <button onClick={() => handleOpenBookModal(activeBook)} className="p-1 text-gray-400 hover:text-emerald-600"><Edit2 size={12}/></button>
+                     <button onClick={() => handleOpenBookModal(activeBook)} className="p-1 text-gray-500 hover:text-emerald-600" aria-label="Modifica prezzario"><Edit2 size={12}/></button>
                  </div>
-                 <p className="text-[10px] text-gray-400 ml-6 line-clamp-1">{activeBook.description || "Nessuna descrizione"}</p>
+                 <p className="text-[10px] text-gray-500 ml-6 line-clamp-1">{activeBook.description || "Nessuna descrizione"}</p>
               {xpweMessage && (
                   <p className={`mt-1 rounded px-2 py-1 text-[10px] font-medium ${xpweMessage.type === 'success' ? 'bg-emerald-50 text-emerald-700' : 'bg-red-50 text-red-600'}`}>
                       {xpweMessage.text}
                   </p>
               )}
              </div>
-             <button onClick={onClose} className="text-gray-400 hover:text-gray-600"><X size={18}/></button>
+             <button onClick={onClose} className="text-gray-500 hover:text-gray-600" aria-label="Chiudi prezzario"><X size={18}/></button>
          </div>
 
          <div className="flex justify-between items-center mt-1">
              <div className="flex gap-1">
-                 <button onClick={() => handleOpenBookModal()} className="p-1.5 bg-white border rounded hover:bg-emerald-50 text-emerald-600" title="Nuovo Prezzario"><Plus size={14}/></button>
-                 <button onClick={() => xpweInputRef.current?.click()} disabled={isImportingXpwe} className="p-1.5 bg-white border rounded hover:bg-emerald-50 text-emerald-600 disabled:opacity-50" title="Importa prezzario XPWE (.xpwe/.xml)">{isImportingXpwe ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14}/>}</button><input ref={xpweInputRef} type="file" accept=".xpwe,.xml,application/xml,text/xml" className="hidden" onChange={handleImportXpwe} disabled={isImportingXpwe} /><button onClick={handleDuplicateBook} className="p-1.5 bg-white border rounded hover:bg-emerald-50 text-emerald-600" title="Duplica Prezzario"><Copy size={14}/></button>
-                  <button onClick={initiateDeleteBook} className="p-1.5 bg-white border rounded hover:bg-red-50 text-red-600" title="Elimina Prezzario"><Trash2 size={14}/></button>
+                 <button onClick={() => handleOpenBookModal()} className="p-1.5 bg-white border rounded hover:bg-emerald-50 text-emerald-600" title="Nuovo Prezzario" aria-label="Nuovo prezzario"><Plus size={14}/></button>
+                 <button onClick={() => xpweInputRef.current?.click()} disabled={isImportingXpwe} className="p-1.5 bg-white border rounded hover:bg-emerald-50 text-emerald-600 disabled:opacity-50" title="Importa prezzario XPWE (.xpwe/.xml)" aria-label="Importa prezzario XPWE">{isImportingXpwe ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14}/>}</button><input ref={xpweInputRef} type="file" accept=".xpwe,.xml,application/xml,text/xml" className="hidden" aria-label="Seleziona prezzario XPWE da importare" onChange={handleImportXpwe} disabled={isImportingXpwe} /><button onClick={handleDuplicateBook} className="p-1.5 bg-white border rounded hover:bg-emerald-50 text-emerald-600" title="Duplica Prezzario" aria-label="Duplica prezzario"><Copy size={14}/></button>
+                  <button onClick={initiateDeleteBook} className="p-1.5 bg-white border rounded hover:bg-red-50 text-red-600" title="Elimina Prezzario" aria-label="Elimina prezzario"><Trash2 size={14}/></button>
                  <div className="w-px bg-gray-300 mx-1 h-6"></div>
-                 <button onClick={handleSortBook} className="p-1.5 bg-white border rounded hover:bg-gray-100 text-gray-600" title="Ordina tutto"><ArrowDownAZ size={14}/></button>
-                 <button onClick={() => setIsAutoCode(!isAutoCode)} className={`p-1.5 border rounded transition-colors ${isAutoCode ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`} title={isAutoCode ? "Codici Automatici" : "Codici Manuali"}>
+                 <button onClick={handleSortBook} className="p-1.5 bg-white border rounded hover:bg-gray-100 text-gray-600" title="Ordina tutto" aria-label="Ordina prezzario"><ArrowDownAZ size={14}/></button>
+                 <button onClick={() => setIsAutoCode(!isAutoCode)} className={`p-1.5 border rounded transition-colors ${isAutoCode ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-orange-50 text-orange-600 border-orange-200'}`} title={isAutoCode ? "Codici Automatici" : "Codici Manuali"} aria-label="Codici automatici" aria-pressed={isAutoCode}>
                     {isAutoCode ? <Hash size={14}/> : <Hash size={14} className="opacity-50"/>}
                  </button>
              </div>
              <div className="flex gap-1">
-                 <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-30"><Undo size={14}/></button>
-                 <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-1.5 text-gray-400 hover:text-gray-700 disabled:opacity-30"><Redo size={14}/></button>
+                 <button onClick={handleUndo} disabled={historyIndex <= 0} className="p-1.5 text-gray-500 hover:text-gray-700 disabled:opacity-30" aria-label="Annulla modifica prezzario"><Undo size={14}/></button>
+                 <button onClick={handleRedo} disabled={historyIndex >= history.length - 1} className="p-1.5 text-gray-500 hover:text-gray-700 disabled:opacity-30" aria-label="Ripeti modifica prezzario"><Redo size={14}/></button>
                  <div className="w-px bg-gray-300 mx-1 h-6"></div>
                  {isParsingPdf ? (
                      <div className="p-1.5 text-emerald-600 bg-emerald-50 border border-emerald-200 rounded animate-pulse flex items-center gap-2">
@@ -2259,11 +2259,11 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
                  ) : (
                      <label className="p-1.5 bg-white border rounded hover:bg-gray-100 text-gray-600 cursor-pointer" title="Importa PDF DEI">
                          <FileText size={14}/>
-                         <input type="file" accept=".pdf" className="hidden" onChange={handleOpenPdfWizard} disabled={isParsingPdf}/>
+                         <input type="file" accept=".pdf" className="hidden" aria-label="Seleziona PDF DEI da importare" onChange={handleOpenPdfWizard} disabled={isParsingPdf}/>
                      </label>
                  )}
-                 <label className="p-1.5 bg-white border rounded hover:bg-gray-100 text-gray-600 cursor-pointer" title="Importa CSV"><FileSpreadsheet size={14}/><input type="file" accept=".csv" className="hidden" onChange={handleOpenCsvWizard}/></label>
-                 <button onClick={handleExportCSV} className="p-1.5 bg-white border rounded hover:bg-gray-100 text-gray-600" title="Esporta CSV"><Download size={14}/></button>
+                 <label className="p-1.5 bg-white border rounded hover:bg-gray-100 text-gray-600 cursor-pointer" title="Importa CSV"><FileSpreadsheet size={14}/><input type="file" accept=".csv" className="hidden" aria-label="Seleziona CSV da importare" onChange={handleOpenCsvWizard}/></label>
+                 <button onClick={handleExportCSV} className="p-1.5 bg-white border rounded hover:bg-gray-100 text-gray-600" title="Esporta CSV" aria-label="Esporta prezzario CSV"><Download size={14}/></button>
              </div>
          </div>
       </div>
@@ -2272,10 +2272,10 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
           <div ref={treeContainerRef} className="border-b overflow-y-auto bg-gray-50 flex flex-col relative shrink-0" style={{ height: treeHeight }} onMouseDown={handleTreeMouseDown} onMouseMove={handleTreeMouseMove} onMouseUp={handleTreeMouseUp} onMouseLeave={handleTreeMouseUp}>
                {catSelectionRect && <div className="absolute bg-emerald-500/20 border border-emerald-500 pointer-events-none z-50" style={{ left: catSelectionRect.x, top: catSelectionRect.y, width: catSelectionRect.w, height: catSelectionRect.h }} />}
               <div className="p-2 border-b bg-gray-100 sticky top-0 z-10">
-                  <input className="w-full text-xs p-1 border rounded mb-1" placeholder="Cerca Categoria..." value={categorySearchTerm} onChange={(e) => setCategorySearchTerm(e.target.value)} />
+                  <input className="w-full text-xs p-1 border rounded mb-1" placeholder="Cerca Categoria..." aria-label="Cerca categoria nel prezzario" value={categorySearchTerm} onChange={(e) => setCategorySearchTerm(e.target.value)} />
                   <div className="flex gap-1">
                     <button onClick={() => handleOpenCategoryModal()} className="flex-1 py-1 bg-white border border-dashed text-gray-500 text-xs hover:text-emerald-600 hover:border-emerald-300 rounded flex items-center justify-center gap-1"><Plus size={10} /> Categoria</button>
-                     {selectedCategoryIds.size > 0 && <button onClick={initiateDeleteSelectedCategories} className="px-2 py-1 bg-red-50 text-red-600 border border-red-200 rounded text-xs hover:bg-red-100" title="Elimina categorie selezionate"><Trash2 size={12}/></button>}
+                     {selectedCategoryIds.size > 0 && <button onClick={initiateDeleteSelectedCategories} className="px-2 py-1 bg-red-50 text-red-600 border border-red-200 rounded text-xs hover:bg-red-100" title="Elimina categorie selezionate" aria-label="Elimina categorie selezionate"><Trash2 size={12}/></button>}
                   </div>
               </div>
               <div className="p-1">
@@ -2286,13 +2286,13 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
 
           <div className="flex-1 flex flex-col overflow-hidden bg-white min-w-0 relative">
               <div className="p-2 border-b flex gap-2 items-center bg-gray-50">
-                  <div className="relative flex-1"><Search className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" size={14} /><input className="w-full pl-7 pr-2 py-1.5 text-xs border rounded-full focus:ring-1 focus:ring-emerald-500 outline-none" placeholder="Cerca voce..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
-                  {selectedItemIds.size > 0 && <div className="flex items-center gap-1 animate-in fade-in zoom-in duration-200"><button onClick={initiateDeleteSelectedItems} className="p-1.5 bg-red-50 text-red-600 rounded-full hover:bg-red-100" title={`Elimina ${selectedItemIds.size} voci`}><Trash2 size={16} /></button><div className="text-xs text-gray-500 font-bold whitespace-nowrap px-1">{selectedItemIds.size} scelti</div></div>}
-                  <button onClick={() => handleOpenItemModal()} disabled={selectedCategoryIds.size !== 1} className="p-1.5 bg-emerald-600 text-white rounded-full hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all" title="Aggiungi Voce"><Plus size={16} /></button>
+                  <div className="relative flex-1"><Search className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-500" size={14} /><input className="w-full pl-7 pr-2 py-1.5 text-xs border rounded-full focus:ring-1 focus:ring-emerald-500 outline-none" placeholder="Cerca voce..." aria-label="Cerca voce nel prezzario" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} /></div>
+                  {selectedItemIds.size > 0 && <div className="flex items-center gap-1 animate-in fade-in zoom-in duration-200"><button onClick={initiateDeleteSelectedItems} className="p-1.5 bg-red-50 text-red-600 rounded-full hover:bg-red-100" title={`Elimina ${selectedItemIds.size} voci`} aria-label={`Elimina ${selectedItemIds.size} voci selezionate`}><Trash2 size={16} /></button><div className="text-xs text-gray-500 font-bold whitespace-nowrap px-1">{selectedItemIds.size} scelti</div></div>}
+                  <button onClick={() => handleOpenItemModal()} disabled={selectedCategoryIds.size !== 1} className="p-1.5 bg-emerald-700 text-white rounded-full hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed shadow-sm transition-all" title="Aggiungi Voce" aria-label="Aggiungi voce al prezzario"><Plus size={16} /></button>
               </div>
               {selectionRect && <div className="absolute bg-blue-500/20 border border-blue-500 pointer-events-none z-50" style={{ left: selectionRect.x, top: selectionRect.y, width: selectionRect.w, height: selectionRect.h }} />}
               <div ref={itemsContainerRef} className="flex-1 overflow-y-auto p-2 space-y-2 bg-gray-50/50 relative" onMouseDown={handleContainerMouseDown} onMouseMove={handleContainerMouseMove} onMouseUp={handleContainerMouseUp} onMouseLeave={handleContainerMouseUp}>
-                  {visibleItems.length === 0 ? <div className="text-center text-gray-400 mt-10 text-xs italic p-4">{selectedCategoryIds.size > 0 ? "Nessuna voce nelle categorie selezionate. Aggiungine una o trascinala dal computo." : "Seleziona una categoria a sinistra per vedere le voci."}</div> : visibleItems.map((item, index) => {
+                  {visibleItems.length === 0 ? <div className="text-center text-gray-500 mt-10 text-xs italic p-4">{selectedCategoryIds.size > 0 ? "Nessuna voce nelle categorie selezionate. Aggiungine una o trascinala dal computo." : "Seleziona una categoria a sinistra per vedere le voci."}</div> : visibleItems.map((item, index) => {
                           const isDuplicate = duplicateCodes.has(item.code);
                           const isSelected = selectedItemIds.has(item.id);
                           return (
@@ -2303,14 +2303,14 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
                                           {isDuplicate && <AlertTriangle size={12} className="text-red-500" />}
                                       </div>
                                       <div className={`flex gap-1 ${isSelected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'} transition-opacity`}>
-                                          <button onClick={(e) => { e.stopPropagation(); handleOpenCopyModal([item]); }} className="p-1 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded" title="Copia Voce" type="button" onMouseDown={e => e.stopPropagation()}><Copy size={12}/></button>
-                                          <button onClick={(e) => { e.stopPropagation(); handleOpenItemModal(item); }} className="p-1 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded" title="Modifica" type="button" aria-label="Modifica Voce" onMouseDown={e => e.stopPropagation()}><Edit2 size={12}/></button>
-                                          <button onClick={(e) => { e.stopPropagation(); initiateDeleteItem(item.id, item.description); }} className="p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded" title="Elimina" type="button" aria-label="Elimina Voce" onMouseDown={e => e.stopPropagation()}><Trash2 size={12}/></button>
+                                          <button onClick={(e) => { e.stopPropagation(); handleOpenCopyModal([item]); }} className="p-1 text-gray-500 hover:text-purple-600 hover:bg-purple-50 rounded" title="Copia Voce" type="button" onMouseDown={e => e.stopPropagation()}><Copy size={12}/></button>
+                                          <button onClick={(e) => { e.stopPropagation(); handleOpenItemModal(item); }} className="p-1 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded" title="Modifica" type="button" aria-label="Modifica Voce" onMouseDown={e => e.stopPropagation()}><Edit2 size={12}/></button>
+                                          <button onClick={(e) => { e.stopPropagation(); initiateDeleteItem(item.id, item.description); }} className="p-1 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded" title="Elimina" type="button" aria-label="Elimina Voce" onMouseDown={e => e.stopPropagation()}><Trash2 size={12}/></button>
                                       </div>
                                   </div>
                                   <p className="text-xs text-gray-800 font-medium leading-snug mb-1.5 pr-6">{item.description}</p>
                                   <div className="flex justify-between items-end border-t border-dashed pt-1.5 mt-1">
-                                      <span className="text-[10px] text-gray-400 flex items-center gap-1"><Tag size={10} /> {item.categoryName}</span>
+                                      <span className="text-[10px] text-gray-500 flex items-center gap-1"><Tag size={10} /> {item.categoryName}</span>
                                       <div className="text-right"><span className="text-[10px] text-gray-500 mr-2">{item.uom}</span><span className="font-bold text-sm text-emerald-700">€ {item.price.toLocaleString('it-IT', { minimumFractionDigits: 2 })}</span></div>
                                   </div>
                               </div>
@@ -2344,64 +2344,64 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
 
       {/* Color Picker, Category, Book, Copy Modals ... */}
       {showColorModal && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Colore categoria">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-sm">
-                <div className="p-4 border-b font-bold text-gray-700 flex justify-between items-center"><span className="flex items-center gap-2"><Palette size={18}/> Seleziona Colore</span><button onClick={() => setShowColorModal(false)}><X size={18}/></button></div>
-                <div className="p-4"><div className="mb-4"><label className="block text-xs font-bold text-gray-500 mb-2">Colori Suggeriti</label><div className="flex flex-wrap gap-3">{PASTEL_COLORS.map(c => (<button key={c} onClick={() => setTempColor(c)} className={`w-8 h-8 rounded-full border shadow-sm transition-transform ${tempColor === c ? 'ring-2 ring-offset-2 ring-emerald-500 scale-110' : 'border-gray-200 hover:scale-105'}`} style={{ backgroundColor: c }} title={c} />))}</div></div><div className="mb-4"><label className="block text-xs font-bold text-gray-500 mb-2">Colore Personalizzato</label><div className="flex items-center gap-3"><input type="color" value={tempColor} onChange={(e) => setTempColor(e.target.value)} className="w-12 h-12 rounded cursor-pointer border-none bg-transparent p-0 overflow-hidden" /><div className="flex-1"><input type="text" value={tempColor} onChange={(e) => setTempColor(e.target.value)} className="w-full border rounded p-2 text-sm font-mono uppercase" placeholder="#RRGGBB" /></div></div></div><div className="flex justify-end pt-2"><button onClick={handleSaveColor} className="bg-emerald-600 text-white px-6 py-2 rounded font-bold hover:bg-emerald-700 shadow-sm w-full">Applica Colore</button></div></div>
+                <div className="p-4 border-b font-bold text-gray-700 flex justify-between items-center"><span className="flex items-center gap-2"><Palette size={18}/> Seleziona Colore</span><button onClick={() => setShowColorModal(false)} aria-label="Chiudi selezione colore"><X size={18}/></button></div>
+                <div className="p-4"><div className="mb-4"><label className="block text-xs font-bold text-gray-500 mb-2">Colori Suggeriti</label><div className="flex flex-wrap gap-3">{PASTEL_COLORS.map(c => (<button key={c} onClick={() => setTempColor(c)} className={`w-8 h-8 rounded-full border shadow-sm transition-transform ${tempColor === c ? 'ring-2 ring-offset-2 ring-emerald-500 scale-110' : 'border-gray-200 hover:scale-105'}`} style={{ backgroundColor: c }} title={c} aria-label={`Colore ${c}`} aria-pressed={tempColor === c} />))}</div></div><div className="mb-4"><label className="block text-xs font-bold text-gray-500 mb-2">Colore Personalizzato</label><div className="flex items-center gap-3"><input type="color" value={tempColor} onChange={(e) => setTempColor(e.target.value)} aria-label="Seleziona colore" className="w-12 h-12 rounded cursor-pointer border-none bg-transparent p-0 overflow-hidden" /><div className="flex-1"><input type="text" value={tempColor} onChange={(e) => setTempColor(e.target.value)} aria-label="Codice colore esadecimale" className="w-full border rounded p-2 text-sm font-mono uppercase" placeholder="#RRGGBB" /></div></div></div><div className="flex justify-end pt-2"><button onClick={handleSaveColor} className="bg-emerald-700 text-white px-6 py-2 rounded font-bold hover:bg-emerald-800 shadow-sm w-full">Applica Colore</button></div></div>
             </div>
         </div>
       )}
       {showCatModal && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Categoria prezzario">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-sm">
-                <div className="p-4 border-b font-bold text-gray-700 flex justify-between items-center"><span>{editingCatId ? 'Modifica Categoria' : 'Nuova Categoria'}</span><button onClick={() => setShowCatModal(false)}><X size={18}/></button></div>
-                <div className="p-4 space-y-3">{!editingCatId && (<div><label className="block text-xs font-bold text-gray-500 mb-1">Categoria Padre</label><select className="w-full border rounded p-2 text-sm" value={targetParentId || activeBook.rootCategory.id} onChange={(e) => handleParentChange(e.target.value)}>{getAllCategoriesFlat.map(c => (<option key={c.id} value={c.id}>{'\u00A0'.repeat(c.depth * 2)} {c.code} {c.name}</option>))}</select></div>)}<div><label className="block text-xs font-bold text-gray-500 mb-1">Codice</label><div className="flex items-center gap-1">{parentPrefix && <span className="text-gray-400 text-sm font-mono">{parentPrefix}</span>}<input autoFocus className="w-full border p-2 rounded text-sm font-mono" value={catFormData.code.replace(parentPrefix, '')} onChange={(e) => setCatFormData({...catFormData, code: parentPrefix + e.target.value})} placeholder="01" /></div></div><div><label className="block text-xs font-bold text-gray-500 mb-1">Nome</label><input className="w-full border p-2 rounded text-sm" value={catFormData.name} onChange={(e) => setCatFormData({...catFormData, name: e.target.value})} placeholder="Nome categoria"/></div>{canEditColor && (<div><label className="block text-xs font-bold text-gray-500 mb-1">Colore (Opzionale)</label><div className="flex flex-wrap gap-2">{PASTEL_COLORS.map(c => (<button key={c} onClick={() => setCatFormData({...catFormData, color: c})} className={`w-6 h-6 rounded-full border ${catFormData.color === c ? 'ring-2 ring-offset-1 ring-gray-400 scale-110' : 'border-gray-200'}`} style={{ backgroundColor: c }} />))}<input type="color" value={catFormData.color} onChange={(e) => setCatFormData({...catFormData, color: e.target.value})} className="w-6 h-6 rounded-full overflow-hidden cursor-pointer border-none p-0"/></div></div>)}<button onClick={handleSaveCategory} className="w-full bg-emerald-600 text-white py-2 rounded font-bold hover:bg-emerald-700 mt-2">Salva</button></div>
+                <div className="p-4 border-b font-bold text-gray-700 flex justify-between items-center"><span>{editingCatId ? 'Modifica Categoria' : 'Nuova Categoria'}</span><button onClick={() => setShowCatModal(false)} aria-label="Chiudi categoria"><X size={18}/></button></div>
+                <div className="p-4 space-y-3">{!editingCatId && (<div><label className="block text-xs font-bold text-gray-500 mb-1">Categoria Padre</label><select className="w-full border rounded p-2 text-sm" aria-label="Categoria padre" value={targetParentId || activeBook.rootCategory.id} onChange={(e) => handleParentChange(e.target.value)}>{getAllCategoriesFlat.map(c => (<option key={c.id} value={c.id}>{'\u00A0'.repeat(c.depth * 2)} {c.code} {c.name}</option>))}</select></div>)}<div><label className="block text-xs font-bold text-gray-500 mb-1">Codice</label><div className="flex items-center gap-1">{parentPrefix && <span className="text-gray-500 text-sm font-mono">{parentPrefix}</span>}<input autoFocus className="w-full border p-2 rounded text-sm font-mono" aria-label="Codice categoria" value={catFormData.code.replace(parentPrefix, '')} onChange={(e) => setCatFormData({...catFormData, code: parentPrefix + e.target.value})} placeholder="01" /></div></div><div><label className="block text-xs font-bold text-gray-500 mb-1">Nome</label><input className="w-full border p-2 rounded text-sm" aria-label="Nome categoria" value={catFormData.name} onChange={(e) => setCatFormData({...catFormData, name: e.target.value})} placeholder="Nome categoria"/></div>{canEditColor && (<div><label className="block text-xs font-bold text-gray-500 mb-1">Colore (Opzionale)</label><div className="flex flex-wrap gap-2">{PASTEL_COLORS.map(c => (<button key={c} onClick={() => setCatFormData({...catFormData, color: c})} className={`w-6 h-6 rounded-full border ${catFormData.color === c ? 'ring-2 ring-offset-1 ring-gray-400 scale-110' : 'border-gray-200'}`} style={{ backgroundColor: c }} aria-label={`Colore ${c}`} aria-pressed={catFormData.color === c} />))}<input type="color" value={catFormData.color} aria-label="Colore categoria" onChange={(e) => setCatFormData({...catFormData, color: e.target.value})} className="w-6 h-6 rounded-full overflow-hidden cursor-pointer border-none p-0"/></div></div>)}<button onClick={handleSaveCategory} className="w-full bg-emerald-700 text-white py-2 rounded font-bold hover:bg-emerald-800 mt-2">Salva</button></div>
             </div>
         </div>
       )}
 
       {/* Item Modal with Toggle Button */}
       {showItemModal && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Voce prezzario">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
-                <div className="p-4 border-b font-bold text-gray-700 flex justify-between items-center"><span>{editingItemId ? 'Modifica Voce' : 'Nuova Voce'}</span><button onClick={() => setShowItemModal(false)}><X size={18}/></button></div>
+                <div className="p-4 border-b font-bold text-gray-700 flex justify-between items-center"><span>{editingItemId ? 'Modifica Voce' : 'Nuova Voce'}</span><button onClick={() => setShowItemModal(false)} aria-label="Chiudi voce"><X size={18}/></button></div>
                 <div className="p-4 space-y-3">
                     <div className="flex gap-2">
                         <div className="w-1/3 relative">
                             <label className="block text-xs font-bold text-gray-500 mb-1 flex justify-between items-center">
                                 Codice
-                                <button onClick={() => setIsAutoCode(!isAutoCode)} className="text-gray-400 hover:text-emerald-600" title={isAutoCode ? "Passa a Manuale" : "Passa ad Automatico"}>
+                                <button onClick={() => setIsAutoCode(!isAutoCode)} className="text-gray-500 hover:text-emerald-600" title={isAutoCode ? "Passa a Manuale" : "Passa ad Automatico"} aria-label="Codice automatico" aria-pressed={isAutoCode}>
                                     <Hash size={12} className={isAutoCode ? "text-emerald-600" : ""} />
                                 </button>
                             </label>
-                            <input className={`w-full border p-2 rounded text-sm font-mono ${isAutoCode ? 'bg-gray-100 text-gray-600' : ''}`} value={itemFormData.code} onChange={(e) => setItemFormData({...itemFormData, code: e.target.value})} readOnly={isAutoCode} title={isAutoCode ? "Codice generato automaticamente (Disattiva # per modificare)" : ""} />
+                            <input className={`w-full border p-2 rounded text-sm font-mono ${isAutoCode ? 'bg-gray-100 text-gray-600' : ''}`} aria-label="Codice voce" value={itemFormData.code} onChange={(e) => setItemFormData({...itemFormData, code: e.target.value})} readOnly={isAutoCode} title={isAutoCode ? "Codice generato automaticamente (Disattiva # per modificare)" : ""} />
                         </div>
-                        <div className="w-2/3"><label className="block text-xs font-bold text-gray-500 mb-1">Unità di Misura</label><input className="w-full border p-2 rounded text-sm text-center" list="uoms" value={itemFormData.uom} onChange={(e) => setItemFormData({...itemFormData, uom: e.target.value})} /></div>
+                        <div className="w-2/3"><label className="block text-xs font-bold text-gray-500 mb-1">Unità di Misura</label><input className="w-full border p-2 rounded text-sm text-center" list="uoms" aria-label="Unità di misura" value={itemFormData.uom} onChange={(e) => setItemFormData({...itemFormData, uom: e.target.value})} /></div>
                     </div>
-                    <div><label className="block text-xs font-bold text-gray-500 mb-1">Descrizione</label><textarea className="w-full border p-2 rounded text-sm h-24 resize-none" value={itemFormData.description} onChange={(e) => setItemFormData({...itemFormData, description: e.target.value})} placeholder="Descrizione voce..."/></div>
-                    <div><label className="block text-xs font-bold text-gray-500 mb-1">Prezzo Unitario (€)</label><input type="number" step="0.01" className="w-full border p-2 rounded text-sm font-bold text-right" value={itemFormData.price} onChange={(e) => setItemFormData({...itemFormData, price: parseFloat(e.target.value) || 0})} /></div>
-                    <button onClick={handleSaveItem} className="w-full bg-emerald-600 text-white py-2 rounded font-bold hover:bg-emerald-700 mt-2">Salva</button>
+                    <div><label className="block text-xs font-bold text-gray-500 mb-1">Descrizione</label><textarea className="w-full border p-2 rounded text-sm h-24 resize-none" aria-label="Descrizione voce" value={itemFormData.description} onChange={(e) => setItemFormData({...itemFormData, description: e.target.value})} placeholder="Descrizione voce..."/></div>
+                    <div><label className="block text-xs font-bold text-gray-500 mb-1">Prezzo Unitario (€)</label><input type="number" step="0.01" className="w-full border p-2 rounded text-sm font-bold text-right" aria-label="Prezzo unitario" value={itemFormData.price} onChange={(e) => setItemFormData({...itemFormData, price: parseFloat(e.target.value) || 0})} /></div>
+                    <button onClick={handleSaveItem} className="w-full bg-emerald-700 text-white py-2 rounded font-bold hover:bg-emerald-800 mt-2">Salva</button>
                 </div>
             </div>
         </div>
       )}
       
       {showBookModal && (
-          <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Prezzario">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-sm">
-                <div className="p-4 border-b font-bold text-gray-700 flex justify-between items-center"><span>{editingBookId ? 'Modifica Prezzario' : 'Nuovo Prezzario'}</span><button onClick={() => setShowBookModal(false)}><X size={18}/></button></div>
-                <div className="p-4 space-y-3"><div><label className="block text-xs font-bold text-gray-500 mb-1">Nome Listino</label><input className="w-full border p-2 rounded text-sm" value={bookFormData.name} onChange={(e) => setBookFormData({...bookFormData, name: e.target.value})} placeholder="Es. Listino 2024"/></div><div><label className="block text-xs font-bold text-gray-500 mb-1">Descrizione</label><textarea className="w-full border p-2 rounded text-sm h-20 resize-none" value={bookFormData.desc} onChange={(e) => setBookFormData({...bookFormData, desc: e.target.value})} placeholder="Dettagli..."/></div><button onClick={handleSaveBook} className="w-full bg-emerald-600 text-white py-2 rounded font-bold hover:bg-emerald-700 mt-2">Salva</button></div>
+                <div className="p-4 border-b font-bold text-gray-700 flex justify-between items-center"><span>{editingBookId ? 'Modifica Prezzario' : 'Nuovo Prezzario'}</span><button onClick={() => setShowBookModal(false)} aria-label="Chiudi prezzario"><X size={18}/></button></div>
+                <div className="p-4 space-y-3"><div><label className="block text-xs font-bold text-gray-500 mb-1">Nome Listino</label><input className="w-full border p-2 rounded text-sm" aria-label="Nome listino" value={bookFormData.name} onChange={(e) => setBookFormData({...bookFormData, name: e.target.value})} placeholder="Es. Listino 2024"/></div><div><label className="block text-xs font-bold text-gray-500 mb-1">Descrizione</label><textarea className="w-full border p-2 rounded text-sm h-20 resize-none" aria-label="Descrizione listino" value={bookFormData.desc} onChange={(e) => setBookFormData({...bookFormData, desc: e.target.value})} placeholder="Dettagli..."/></div><button onClick={handleSaveBook} className="w-full bg-emerald-700 text-white py-2 rounded font-bold hover:bg-emerald-800 mt-2">Salva</button></div>
             </div>
         </div>
       )}
       {(copyItemTargets || copyCategoryTargets) && (
-        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+        <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Copia o sposta voci">
             <div className="bg-white rounded-lg shadow-xl w-full max-w-md">
                 <div className="p-4 border-b font-bold text-gray-700 flex justify-between items-center">
                     <span>
                         {copyItemTargets ? `Copia ${copyItemTargets.length} Voci` : `Copia ${copyCategoryTargets?.length} Categorie`}
                     </span>
-                    <button onClick={() => { setCopyItemTargets(null); setCopyCategoryTargets(null); }}><X size={18}/></button>
+                    <button onClick={() => { setCopyItemTargets(null); setCopyCategoryTargets(null); }} aria-label="Chiudi copia o sposta"><X size={18}/></button>
                 </div>
                 <div className="p-6 space-y-6">
                     {copyItemTargets && (
@@ -2418,7 +2418,7 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
                         </p>
                         <div>
                             <label className="block text-xs font-bold text-gray-500 mb-1">Prezzario di Destinazione</label>
-                            <select className="w-full border p-2 rounded text-sm" value={copyTargetBookId} onChange={(e) => setCopyTargetBookId(e.target.value)}>
+                            <select className="w-full border p-2 rounded text-sm" aria-label="Prezzario di destinazione" value={copyTargetBookId} onChange={(e) => setCopyTargetBookId(e.target.value)}>
                                 <option value="">Seleziona...</option>
                                 {books.filter(b => b.id !== activeBookId).map(b => (
                                     <option key={b.id} value={b.id}>{b.name}</option>
@@ -2428,7 +2428,7 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
                         {copyTargetBookId && (
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">Categoria di Destinazione (Opzionale)</label>
-                                <select className="w-full border p-2 rounded text-sm" value={copyTargetCategoryId || ''} onChange={(e) => setCopyTargetCategoryId(e.target.value || null)}>
+                                <select className="w-full border p-2 rounded text-sm" aria-label="Categoria di destinazione" value={copyTargetCategoryId || ''} onChange={(e) => setCopyTargetCategoryId(e.target.value || null)}>
                                     <option value="">Radice (Principale)</option>
                                     {copyTargetBookId && (() => {
                                         const targetBook = books.find(b => b.id === copyTargetBookId);
@@ -2445,7 +2445,7 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
                         <button 
                             onClick={copyItemTargets ? handleCopyItemsToRemote : handleCopyCategoriesToRemote} 
                             disabled={!copyTargetBookId} 
-                            className="w-full bg-emerald-600 text-white py-2 rounded font-bold hover:bg-emerald-700 disabled:opacity-50 mt-2"
+                            className="w-full bg-emerald-700 text-white py-2 rounded font-bold hover:bg-emerald-800 disabled:opacity-50 mt-2"
                         >
                             Copia
                         </button>
@@ -2455,14 +2455,14 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
         </div>
       )}
       {showCsvWizard && (
-          <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4">
+          <div className="fixed inset-0 bg-black/50 z-[70] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label="Importa PDF o CSV">
               <div className="bg-white rounded-lg shadow-xl w-full max-w-4xl h-[80vh] flex flex-col">
                   <div className="p-4 border-b font-bold text-gray-700 flex justify-between items-center bg-emerald-50">
                       <span className="flex items-center gap-2">
                           {csvSeparator === '|||' ? <FileText size={18}/> : <FileSpreadsheet size={18}/>} 
                           Importazione {csvSeparator === '|||' ? 'PDF' : 'CSV'} - {wizardStep === 'mapping' ? 'Mappatura Colonne' : 'Verifica Categorie'}
                       </span>
-                      <button onClick={() => setShowCsvWizard(false)}><X size={18}/></button>
+                      <button onClick={() => setShowCsvWizard(false)} aria-label="Chiudi importazione"><X size={18}/></button>
                   </div>
                                     <div className="flex-1 overflow-auto p-6">
                                         {wizardStep === 'mapping' && (
@@ -2480,6 +2480,7 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
                                                                     <th key={idx} className="p-2 border-b min-w-[150px]">
                                                                         <select 
                                                                             className="w-full border rounded p-1 text-xs font-bold" 
+                                                                            aria-label={`Mappatura colonna ${idx + 1}`}
                                                                             value={csvMapping[idx] || 'ignore'} 
                                                                             onChange={(e) => setCsvMapping({...csvMapping, [idx]: e.target.value as any})}
                                                                         >
@@ -2537,6 +2538,7 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
                                                             <span className="font-mono font-bold text-xs bg-white px-1 border rounded">{catCode}</span>
                                                             <input 
                                                                 className="flex-1 border-b bg-transparent outline-none text-sm" 
+                                                                aria-label={`Nome categoria ${catCode}`}
                                                                 value={csvDetectedCategories[catCode]} 
                                                                 onChange={(e) => setCsvDetectedCategories({...csvDetectedCategories, [catCode]: e.target.value})} 
                                                             />
@@ -2546,7 +2548,7 @@ export const PriceBookPanel: React.FC<PriceBookPanelProps> = ({
                                             </div>
                                         )}
                                     </div>
-                  <div className="p-4 border-t bg-gray-50 flex justify-end gap-3">{wizardStep === 'categories' && (<button onClick={() => setWizardStep('mapping')} className="px-4 py-2 border rounded text-gray-600 hover:bg-white">Indietro</button>)}{wizardStep === 'mapping' ? (<button onClick={analyzeCsvCategories} disabled={Object.values(csvMapping).every(v => v === 'ignore')} className="px-4 py-2 bg-emerald-600 text-white rounded font-bold hover:bg-emerald-700 disabled:opacity-50">Avanti: Verifica Categorie</button>) : (<button onClick={executeCsvImport} className="px-4 py-2 bg-emerald-600 text-white rounded font-bold hover:bg-emerald-700 shadow-sm flex items-center gap-2"><Download size={16}/> Importa Dati</button>)}</div>
+                  <div className="p-4 border-t bg-gray-50 flex justify-end gap-3">{wizardStep === 'categories' && (<button onClick={() => setWizardStep('mapping')} className="px-4 py-2 border rounded text-gray-600 hover:bg-white">Indietro</button>)}{wizardStep === 'mapping' ? (<button onClick={analyzeCsvCategories} disabled={Object.values(csvMapping).every(v => v === 'ignore')} className="px-4 py-2 bg-emerald-700 text-white rounded font-bold hover:bg-emerald-800 disabled:opacity-50">Avanti: Verifica Categorie</button>) : (<button onClick={executeCsvImport} className="px-4 py-2 bg-emerald-700 text-white rounded font-bold hover:bg-emerald-800 shadow-sm flex items-center gap-2"><Download size={16}/> Importa Dati</button>)}</div>
               </div>
           </div>
       )}

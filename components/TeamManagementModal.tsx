@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Project, MemberPermission, RoleType } from '../types';
 import { Users, UserPlus, Shield, Check, Trash2, X, CheckCircle2, ShieldCheck, KeyRound, Mail, Copy, AlertTriangle } from 'lucide-react';
 
@@ -167,6 +167,17 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
   const [emailEnabled, setEmailEnabled] = useState(() => localStorage.getItem('stimia_emailjs_enabled') === 'true');
   const [sendingEmail, setSendingEmail] = useState(false);
   const [emailStatusMessage, setEmailStatusMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
 
   const saveEmailSettings = (serviceId: string, templateId: string, publicKey: string, enabled: boolean) => {
     localStorage.setItem('stimia_emailjs_service_id', serviceId);
@@ -394,7 +405,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-xs flex items-center justify-center z-[150] p-4">
+    <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-xs flex items-center justify-center z-[150] p-4" role="dialog" aria-modal="true" aria-labelledby="team-title">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl overflow-hidden border border-gray-200 flex flex-col max-h-[90vh]">
         
         {/* Header */}
@@ -404,7 +415,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
               <ShieldCheck size={22} />
             </div>
             <div>
-              <h3 className="font-bold text-lg leading-tight flex items-center gap-2">
+              <h3 id="team-title" className="font-bold text-lg leading-tight flex items-center gap-2">
                 Gestione Membri & Permessi
                 <span className="text-xs font-semibold bg-emerald-500/30 text-emerald-200 px-2.5 py-0.5 rounded-full border border-emerald-400/30">
                   Amministratore
@@ -415,7 +426,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
               </p>
             </div>
           </div>
-          <button onClick={onClose} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors">
+          <button onClick={onClose} className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-colors" aria-label="Chiudi gestione membri">
             <X size={20} />
           </button>
         </div>
@@ -444,7 +455,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
             </div>
 
             {emailStatusMessage && (
-              <div className={`p-3 rounded-lg text-xs font-medium border flex items-center gap-2 ${
+              <div role="status" aria-live="polite" className={`p-3 rounded-lg text-xs font-medium border flex items-center gap-2 ${
                 emailStatusMessage.type === 'success' 
                   ? 'bg-emerald-50 text-emerald-800 border-emerald-200' 
                   : 'bg-red-50 text-red-800 border-red-200'
@@ -470,6 +481,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
                     type="button" 
                     onClick={() => setShowEmailSettings(false)}
                     className="text-slate-400 hover:text-slate-600"
+                    aria-label="Chiudi impostazioni email"
                   >
                     <X size={16} />
                   </button>
@@ -477,7 +489,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Service ID</label>
+                    <label htmlFor="emailjs-service-id" className="block font-bold text-slate-700 mb-1">Service ID</label>
                     <input 
                       type="text" 
                       placeholder="es. service_xxxxxx"
@@ -487,7 +499,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
                     />
                   </div>
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Template ID</label>
+                    <label htmlFor="emailjs-template-id" className="block font-bold text-slate-700 mb-1">Template ID</label>
                     <input 
                       type="text" 
                       placeholder="es. template_xxxxxx"
@@ -497,7 +509,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
                     />
                   </div>
                   <div>
-                    <label className="block font-bold text-slate-700 mb-1">Public Key (API Key)</label>
+                    <label htmlFor="emailjs-public-key" className="block font-bold text-slate-700 mb-1">Public Key (API Key)</label>
                     <input 
                       type="text" 
                       placeholder="es. xxxxxxxxxxxxxx"
@@ -537,7 +549,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
                       const enabled = (document.getElementById('emailjs-enabled') as HTMLInputElement)?.checked || false;
                       saveEmailSettings(serviceId, templateId, publicKey, enabled);
                     }}
-                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded shadow-xs"
+                    className="px-4 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold rounded shadow-xs"
                   >
                     Salva Impostazioni
                   </button>
@@ -548,8 +560,9 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
             <form onSubmit={handleAddMember} className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Email Utente</label>
+                  <label htmlFor="new-member-email" className="block text-xs font-bold text-slate-700 mb-1">Email Utente</label>
                   <input 
+                    id="new-member-email"
                     type="email" 
                     value={newEmail}
                     onChange={e => setNewEmail(e.target.value)}
@@ -560,8 +573,9 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
                 </div>
 
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Ruolo Predefinito</label>
+                  <label htmlFor="new-member-role" className="block text-xs font-bold text-slate-700 mb-1">Ruolo Predefinito</label>
                   <select 
+                    id="new-member-role"
                     value={newRole}
                     onChange={e => handleRoleChangeSelect(e.target.value as RoleType)}
                     className="w-full p-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none font-medium"
@@ -659,7 +673,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
               <div className="flex justify-end pt-1">
                 <button 
                   type="submit"
-                  className="px-5 py-2.5 bg-emerald-600 text-white rounded-lg font-bold text-xs hover:bg-emerald-700 shadow-sm flex items-center gap-2 transition-all"
+                  className="px-5 py-2.5 bg-emerald-700 text-white rounded-lg font-bold text-xs hover:bg-emerald-800 shadow-sm flex items-center gap-2 transition-all"
                 >
                   <UserPlus size={16} /> Aggiungi Membro al Team
                 </button>
@@ -679,7 +693,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
                   <button
                     type="button"
                     onClick={() => triggerInviteEmail(lastAddedMember.email, lastAddedMember.role)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded font-semibold transition-colors shadow-xs"
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white rounded font-semibold transition-colors shadow-xs"
                   >
                     <Mail size={14} /> Apri Mail di Invito
                   </button>
@@ -731,7 +745,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
 
             {/* MEMBERS LIST */}
             {Object.keys(memberPermissions).length === 0 ? (
-              <div className="p-6 text-center text-slate-400 text-xs border border-dashed rounded-xl bg-slate-50">
+              <div className="p-6 text-center text-slate-500 text-xs border border-dashed rounded-xl bg-slate-50">
                 Nessun collaboratore aggiunto. Utilizza il modulo in alto per invitare membri.
               </div>
             ) : (
@@ -760,6 +774,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
                               <span>Ruolo: </span>
                               <select 
                                 value={perm.role}
+                                aria-label={`Ruolo di ${email}`}
                                 onChange={e => handleChangeMemberRole(email, e.target.value as RoleType)}
                                 className="font-bold text-slate-800 bg-slate-50 border border-slate-300 rounded px-1.5 py-0.5 text-xs outline-none focus:ring-1 focus:ring-emerald-500"
                               >
@@ -786,6 +801,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
                             disabled={sendingEmail}
                             className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors animate-pulse disabled:cursor-wait disabled:opacity-50"
                             title={emailEnabled ? "Reinvia email automatica (EmailJS)" : "Invia email (Client locale)"}
+                            aria-label={`Invia invito a ${email}`}
                           >
                             <Mail size={16} />
                           </button>
@@ -793,6 +809,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
                             onClick={() => handleRemoveMember(email)}
                             className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                             title="Rimuovi membro"
+                            aria-label={`Rimuovi ${email}`}
                           >
                             <Trash2 size={16} />
                           </button>
@@ -804,6 +821,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
                         <button
                           type="button"
                           onClick={() => handleToggleMemberPerm(email, 'canRead')}
+                          aria-pressed={perm.canRead}
                           className={`p-1.5 rounded flex items-center justify-between border transition-all ${
                             perm.canRead ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200 line-through'
                           }`}
@@ -815,6 +833,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
                         <button
                           type="button"
                           onClick={() => handleToggleMemberPerm(email, 'canWrite')}
+                          aria-pressed={perm.canWrite}
                           className={`p-1.5 rounded flex items-center justify-between border transition-all ${
                             perm.canWrite ? 'bg-emerald-50 text-emerald-800 border-emerald-200 font-medium' : 'bg-slate-50 text-slate-400 border-slate-200 line-through'
                           }`}
@@ -826,6 +845,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
                         <button
                           type="button"
                           onClick={() => handleToggleMemberPerm(email, 'canEditSAL')}
+                          aria-pressed={perm.canEditSAL}
                           className={`p-1.5 rounded flex items-center justify-between border transition-all ${
                             perm.canEditSAL ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200 line-through'
                           }`}
@@ -837,6 +857,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
                         <button
                           type="button"
                           onClick={() => handleToggleMemberPerm(email, 'canEditPriceBooks')}
+                          aria-pressed={perm.canEditPriceBooks}
                           className={`p-1.5 rounded flex items-center justify-between border transition-all ${
                             perm.canEditPriceBooks ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200 line-through'
                           }`}
@@ -848,6 +869,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
                         <button
                           type="button"
                           onClick={() => handleToggleMemberPerm(email, 'canManageMembers')}
+                          aria-pressed={perm.canManageMembers}
                           className={`p-1.5 rounded flex items-center justify-between border transition-all ${
                             perm.canManageMembers ? 'bg-emerald-50 text-emerald-800 border-emerald-200 font-medium' : 'bg-slate-50 text-slate-400 border-slate-200 line-through'
                           }`}
@@ -859,6 +881,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
                         <button
                           type="button"
                           onClick={() => handleToggleMemberPerm(email, 'canExport')}
+                          aria-pressed={perm.canExport}
                           className={`p-1.5 rounded flex items-center justify-between border transition-all ${
                             perm.canExport ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200 line-through'
                           }`}
@@ -891,7 +914,7 @@ export const TeamManagementModal: React.FC<Props> = ({ project, currentUserEmail
             </button>
             <button 
               onClick={handleSaveAndClose}
-              className="px-5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm transition-all flex items-center gap-1.5"
+              className="px-5 py-2 text-xs font-bold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-sm transition-all flex items-center gap-1.5"
             >
               <CheckCircle2 size={16} /> Chiudi
             </button>
