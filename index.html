@@ -2,9 +2,12 @@
 <html lang="it">
   <head>
     <meta charset="UTF-8" />
+    <meta name="referrer" content="strict-origin-when-cross-origin" />
     <link rel="icon" type="image/png" href="icon-192.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#059669" />
+    <meta name="description" content="Stimia — computi metrici, SAL, prezzari e contabilità lavori." />
+    <meta name="robots" content="noindex, nofollow" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
@@ -12,25 +15,9 @@
     <link rel="apple-touch-icon" href="icon-192.png" />
     <title>Stimia</title>
 
-    <script>
-      // Polyfill process for libraries
-      window.process = {
-        env: { NODE_ENV: 'production' },
-        version: '',
-        nextTick: function(cb) { setTimeout(cb, 0); }
-      };
-    </script>
-    <style>
-      @media print {
-        .no-print { display: none !important; }
-        .print-only { display: block !important; }
-        body { background: white; color: black; }
-        .page-break { page-break-before: always; }
-      }
-      .print-only { display: none; }
-    </style>
+    <script src="process-polyfill.js"></script>
   </head>
-  <body class="bg-slate-100 text-slate-800 h-screen overflow-hidden" style="height: 100dvh">
+  <body class="bg-slate-100 text-slate-800 h-[100dvh] overflow-hidden">
     <div id="root" class="h-full"></div>
     <script type="module" src="/index.tsx"></script>
   </body>

@@ -1881,7 +1881,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
             <div className="flex shrink-0 items-center rounded-lg bg-slate-100 p-1">
                 <button 
                     onClick={() => setEditorMode('ESTIMATE')}
-                    className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors sm:px-3 ${editorMode === 'ESTIMATE' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors sm:px-3 ${editorMode === 'ESTIMATE' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
                 >
                     <Calculator size={15} /> Computo
                 </button>
@@ -1893,7 +1893,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
                             setSelectedSalIds(new Set([project.sals[0].id]));
                         }
                     }}
-                    className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors sm:px-3 ${editorMode === 'SAL' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-500 hover:text-slate-800'}`}
+                    className={`flex h-7 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold transition-colors sm:px-3 ${editorMode === 'SAL' ? 'bg-white text-emerald-700 shadow-sm' : 'text-slate-600 hover:text-slate-800'}`}
                 >
                     <CheckCircle2 size={15} /><span className="hidden sm:inline">Contabilità (SAL)</span><span className="sm:hidden">SAL</span>
                 </button>
@@ -1963,8 +1963,8 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
              <div className="flex justify-between items-center p-4 pb-2">
                 <h2 className="font-bold text-gray-700 uppercase text-xs tracking-wider flex items-center gap-2"><FolderOpen size={16} className="text-gray-500" /> Struttura WBS</h2>
                 <div className="flex gap-2">
-                    <button onClick={() => setSidebarOpen(false)} className="p-1 rounded text-gray-500 hover:bg-gray-200"><ChevronLeft size={16} /></button>
-                    <button onClick={() => setAutoWBSCode(!autoWBSCode)} className={`p-1.5 rounded border transition-colors ${autoWBSCode ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>{autoWBSCode ? <Hash size={14} /> : <Hash size={14} className="opacity-50" />}</button>
+                    <button onClick={() => setSidebarOpen(false)} className="p-1 rounded text-gray-500 hover:bg-gray-200" aria-label="Chiudi pannello WBS"><ChevronLeft size={16} /></button>
+                    <button onClick={() => setAutoWBSCode(!autoWBSCode)} className={`p-1.5 rounded border transition-colors ${autoWBSCode ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`} aria-label="Codici WBS automatici" aria-pressed={autoWBSCode}>{autoWBSCode ? <Hash size={14} /> : <Hash size={14} className="opacity-50" />}</button>
                     <button onClick={handleSortWBS} className="flex items-center gap-1.5 px-2 py-1 bg-white border border-gray-200 rounded text-xs font-medium text-gray-600 hover:text-accent-600"><ArrowDownAZ size={14} /> Ordina</button>
                 </div>
             </div>
@@ -3066,7 +3066,7 @@ export const Editor: React.FC<EditorProps> = ({ project: initialProject, current
               </div>
             </div>
           ) : (
-             <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 px-6 text-center text-slate-400">
+             <div className="flex-1 flex flex-col items-center justify-center bg-slate-50 px-6 text-center text-slate-500">
                  <FolderOpen size={44} className="mb-4 opacity-50" />
                  <p className="text-base font-semibold text-slate-600">Seleziona una categoria WBS</p>
                  <p className="text-sm">o creane una nuova dal pannello WBS</p>

@@ -68,7 +68,7 @@
   }
 
   .btn-primary {
-    @apply bg-emerald-600 text-white shadow-sm hover:bg-emerald-700;
+    @apply bg-emerald-700 text-white shadow-sm hover:bg-emerald-800;
   }
 
   .btn-neutral {
@@ -101,10 +101,33 @@
 }
 
 /* La stampa usa sempre l'impaginazione HTML, mai elementi di servizio. */
+.print-only {
+  display: none;
+}
+
 @media print {
   .no-print {
     display: none !important;
   }
+
+  .print-only {
+    display: block !important;
+  }
+
+  body {
+    background: white;
+    color: black;
+  }
+
+  .page-break {
+    page-break-before: always;
+  }
+}
+
+/* Focus visibile da tastiera senza alterare i pulsanti al click. */
+:focus-visible {
+  outline: 2px solid #059669;
+  outline-offset: 2px;
 }
 
 /* Regole non "layered": vincono sulle utility Tailwind e valgono solo su telefono.

@@ -23,6 +23,32 @@ const getReactToPrintHook = () => {
 
 const useReactToPrintFn = getReactToPrintHook();
 
+const escapeHtml = (value: string) =>
+    String(value ?? '').replace(/[&<>"']/g, char => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    }[char] as string));
+
+/**
+ * Copia nel documento di stampa i CSS già compilati dall'app. In questo modo
+ * non serve caricare Tailwind da CDN e l'anteprima/stampa resta disponibile
+ * anche offline, con gli stessi stili dell'app.
+ */
+const collectDocumentStyles = (): string => {
+    const chunks: string[] = [];
+    Array.from(document.styleSheets).forEach(sheet => {
+        try {
+            chunks.push(Array.from(sheet.cssRules).map(rule => rule.cssText).join('\n'));
+        } catch {
+            /* foglio esterno non leggibile: ignora */
+        }
+    });
+    return chunks.join('\n').replace(/<\/style/gi, '<\\/style');
+};
+
 const GOOGLE_FONTS = [
     "Roboto",
     "Open Sans",
@@ -534,35 +560,20 @@ export const PrintPreview: React.FC<PrintPreviewProps> = ({
         
         const doc = iframe.contentWindow?.document;
         if (doc) {
+            const styles = collectDocumentStyles();
             doc.open();
             doc.write(`<!DOCTYPE html>
-                <html>
+                <html lang="it">
                 <head>
-                    <title>${project.name}</title>
+                    <title>${escapeHtml(project.name)}</title>
                     <meta charset="utf-8" />
                     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-                    <script src="https://cdn.tailwindcss.com"></script>
-                    <script>
-                       tailwind.config = {
-                          theme: {
-                            extend: {
-                              colors: {
-                                primary: '#0f172a',
-                                secondary: '#334155',
-                                accent: '#0ea5e9',
-                              },
-                              screens: {
-                                  'print': {'raw': 'print'},
-                              }
-                            }
-                          }
-                        }
-                    </script>
                     <style>
+                       html, body { margin: 0; padding: 0; background: #fff; }
+                       ${styles}
                        ${printPageCss}
                        ${printRulesCss}
                     </style>
-                    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&display=swap" rel="stylesheet">
                 </head>
                 <body>
                     ${content.innerHTML}

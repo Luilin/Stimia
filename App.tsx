@@ -959,20 +959,20 @@ export default function App() {
         </main>
 
         {showNewProjectModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="new-project-title">
             <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
               <div className="flex items-center justify-between border-b border-slate-200 p-4">
-                <h3 className="text-base font-bold text-slate-900">Nuovo Computo</h3>
-                <button onClick={() => setShowNewProjectModal(false)} className="btn btn-ghost btn-icon" title="Chiudi"><X size={18} /></button>
+                <h3 id="new-project-title" className="text-base font-bold text-slate-900">Nuovo Computo</h3>
+                <button onClick={() => setShowNewProjectModal(false)} className="btn btn-ghost btn-icon" title="Chiudi" aria-label="Chiudi"><X size={18} /></button>
               </div>
               <form onSubmit={handleCreateProject} className="space-y-4 overflow-y-auto p-4 sm:p-5">
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">Nome Progetto</label>
-                  <input autoFocus type="text" value={newProjectName} onChange={e => setNewProjectName(e.target.value)} className="field" required />
+                  <label htmlFor="new-project-name" className="mb-1.5 block text-xs font-semibold text-slate-700">Nome Progetto</label>
+                  <input id="new-project-name" autoFocus type="text" value={newProjectName} onChange={e => setNewProjectName(e.target.value)} className="field" required />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">Descrizione</label>
-                  <textarea value={newProjectDesc} onChange={e => setNewProjectDesc(e.target.value)} className="field h-24 resize-none" />
+                  <label htmlFor="new-project-description" className="mb-1.5 block text-xs font-semibold text-slate-700">Descrizione</label>
+                  <textarea id="new-project-description" value={newProjectDesc} onChange={e => setNewProjectDesc(e.target.value)} className="field h-24 resize-none" />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button type="button" onClick={() => setShowNewProjectModal(false)} className="btn btn-neutral">Annulla</button>
@@ -984,11 +984,11 @@ export default function App() {
         )}
 
         {projectToDelete && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="delete-project-title">
             <div className="w-full max-w-md overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
               <div className="flex items-center justify-between border-b border-slate-200 p-4">
-                <h3 className="text-base font-bold text-red-600">Elimina Computo</h3>
-                <button onClick={() => setProjectToDelete(null)} className="btn btn-ghost btn-icon" title="Chiudi"><X size={18} /></button>
+                <h3 id="delete-project-title" className="text-base font-bold text-red-600">Elimina Computo</h3>
+                <button onClick={() => setProjectToDelete(null)} className="btn btn-ghost btn-icon" title="Chiudi" aria-label="Chiudi"><X size={18} /></button>
               </div>
               <div className="space-y-4 p-4 sm:p-5">
                 <p className="text-sm text-slate-600">Sei sicuro di voler eliminare questo computo? Questa operazione non può essere annullata.</p>
@@ -1002,23 +1002,23 @@ export default function App() {
         )}
 
         {projectToEdit && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm">
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="edit-project-title">
             <div className="flex max-h-[90vh] w-full max-w-md flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xl">
               <div className="flex items-center justify-between border-b border-slate-200 p-4">
                 <div className="flex items-center gap-2">
                   <Pencil size={17} className="text-emerald-600" />
-                  <h3 className="text-base font-bold text-slate-900">Modifica Computo</h3>
+                  <h3 id="edit-project-title" className="text-base font-bold text-slate-900">Modifica Computo</h3>
                 </div>
-                <button onClick={() => setProjectToEdit(null)} className="btn btn-ghost btn-icon" title="Chiudi"><X size={18} /></button>
+                <button onClick={() => setProjectToEdit(null)} className="btn btn-ghost btn-icon" title="Chiudi" aria-label="Chiudi"><X size={18} /></button>
               </div>
               <form onSubmit={handleEditProject} className="space-y-4 overflow-y-auto p-4 sm:p-5">
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">Nome Progetto</label>
-                  <input autoFocus type="text" value={editProjectName} onChange={e => setEditProjectName(e.target.value)} className="field" required />
+                  <label htmlFor="edit-project-name" className="mb-1.5 block text-xs font-semibold text-slate-700">Nome Progetto</label>
+                  <input id="edit-project-name" autoFocus type="text" value={editProjectName} onChange={e => setEditProjectName(e.target.value)} className="field" required />
                 </div>
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold text-slate-700">Descrizione</label>
-                  <textarea value={editProjectDesc} onChange={e => setEditProjectDesc(e.target.value)} className="field h-24 resize-none" placeholder="Descrizione del computo" />
+                  <label htmlFor="edit-project-description" className="mb-1.5 block text-xs font-semibold text-slate-700">Descrizione</label>
+                  <textarea id="edit-project-description" value={editProjectDesc} onChange={e => setEditProjectDesc(e.target.value)} className="field h-24 resize-none" placeholder="Descrizione del computo" />
                 </div>
                 <div className="flex justify-end gap-2 pt-2">
                   <button type="button" onClick={() => setProjectToEdit(null)} className="btn btn-neutral">Annulla</button>

@@ -195,6 +195,13 @@ location.reload();
   browser (IndexedDB e chiavi `stimia_*`).
 - La chiave Supabase `anon`/publishable è pubblica per progettazione: la
   protezione dei dati dipende dalle policy RLS, non dalla segretezza della chiave.
+- La build inietta una **Content-Security-Policy** (`script-src 'self'`, nessun
+  script inline) compatibile con Supabase, PDF.js, PDFMake ed EmailJS. Le uniche
+  eccezioni esterne sono i font opzionali dell'anteprima di stampa
+  (`fonts.googleapis.com` / `fonts.gstatic.com`); senza rete si usano i font di
+  sistema.
+- La stampa HTML non carica più Tailwind da CDN: riutilizza il CSS compilato
+  dell'app, quindi resta disponibile anche offline.
 
 ---
 
