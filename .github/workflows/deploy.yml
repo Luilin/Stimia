@@ -36,6 +36,14 @@ jobs:
       - name: Test permessi SQL
         run: npm run test:sql
 
+      - name: Test E2E Supabase (staging)
+        if: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        run: npm run test:e2e
+        env:
+          SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+
       - name: Build
         run: npm run build
         env:

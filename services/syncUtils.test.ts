@@ -5,6 +5,7 @@ import {
   databaseRole,
   membersSignature,
   memberDbPermissions,
+  normalizeOfferTree,
   projectSaveMode,
 } from './syncUtils';
 
@@ -33,27 +34,28 @@ const baseProject = {
 describe('memberDbPermissions', () => {
   it('mantiene separati scrittura completa e permessi parziali', () => {
     expect(memberDbPermissions(permission({ canWrite: true }))).toEqual({
-      role: 'editor', canWrite: true, canEditSAL: false, canEditPriceBooks: false,
+      role: 'editor', canWrite: true, canEditSAL: false, canEditPriceBooks: false, canEditOffer: false,
     });
 
     expect(memberDbPermissions(permission({ canEditSAL: true }))).toEqual({
-      role: 'editor', canWrite: false, canEditSAL: true, canEditPriceBooks: false,
+      role: 'editor', canWrite: false, canEditSAL: true, canEditPriceBooks: false, canEditOffer: false,
     });
 
     expect(memberDbPermissions(permission({ canEditPriceBooks: true }))).toEqual({
-      role: 'editor', canWrite: false, canEditSAL: false, canEditPriceBooks: true,
+      role: 'editor', canWrite: false, canEditSAL: false, canEditPriceBooks: true, canEditOffer: false,
     });
   });
 
-  it('tratta la ditta come editor per salvare l’offerta', () => {
+  it('tratta la ditta come editor solo per l’offerta', () => {
     expect(memberDbPermissions(permission({ role: 'ditta' }))).toEqual({
-      role: 'editor', canWrite: true, canEditSAL: false, canEditPriceBooks: false,
+      role: 'editor', canWrite: false, canEditSAL: false, canEditPriceBooks: false, canEditOffer: true,
     });
   });
 
   it('mappa i vecchi ruoli', () => {
     expect(memberDbPermissions(undefined, 'editor').canWrite).toBe(true);
-    expect(memberDbPermissions(undefined, 'ditta').canWrite).toBe(true);
+    expect(memberDbPermissions(undefined, 'ditta').canWrite).toBe(false);
+    expect(memberDbPermissions(undefined, 'ditta').canEditOffer).toBe(true);
     expect(memberDbPermissions(undefined, 'viewer').canWrite).toBe(false);
   });
 });
@@ -150,13 +152,51 @@ describe('projectSaveMode', () => {
     expect(projectSaveMode(project, 'owner-uid', 'OWNER@example.com')).toBe('full');
   });
 
-  it('tratta il vecchio ruolo ditta come editor', () => {
-    const project = { ...baseProject, collaborators: { 'a@b.it': 'ditta' as const } };
-    expect(projectSaveMode(project, 'member-uid', 'a@b.it')).toBe('full');
+  it('tratta il ruolo ditta come offerta', () => {
+    const legacy = { ...baseProject, collaborators: { 'a@b.it': 'ditta' as const } };
+    const granular = {
+      ...baseProject,
+      memberPermissions: { 'a@b.it': permission({ role: 'ditta' }) },
+    };
+    expect(projectSaveMode(legacy, 'member-uid', 'a@b.it')).toBe('offer');
+    expect(projectSaveMode(granular, 'member-uid', 'a@b.it')).toBe('offer');
   });
 
   it('per un progetto legacy senza permessi lascia decidere il database', () => {
     expect(projectSaveMode(baseProject, 'member-uid', 'a@b.it')).toBe('full');
+  });
+});
+
+describe('normalizeOfferTree', () => {
+  it('rende espliciti i campi offerta vuoti, anche nelle sottocategorie', () => {
+    const tree = {
+      id: 'root',
+      code: '',
+      name: 'Root',
+      level: 0,
+      items: [],
+      children: [
+        {
+          id: 'cat',
+          code: '1',
+          name: 'Categoria',
+          level: 1,
+          children: [],
+          items: [{ id: 'item1', code: '1.1', description: 'Voce', uom: 'm', qty: 1, price: 10, amount: 10 }],
+        },
+      ],
+    } as unknown as Project['rootWBS'];
+
+    const normalized = normalizeOfferTree(tree);
+    expect(normalized.items).toEqual([]);
+    expect(normalized.children[0].items[0]).toMatchObject({
+      offerPrice: null,
+      offerMaterialPrice: null,
+      offerLaborPrice: null,
+      offerDays: null,
+      offerNotes: null,
+      description: 'Voce',
+    });
   });
 });
 

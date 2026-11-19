@@ -690,6 +690,35 @@ create policy stimia_files_delete on storage.objects
 -- ============================================================
 
 -- ------------------------------------------------------------
+-- 0. Permesso offerta ditta
+-- ------------------------------------------------------------
+alter table public.project_members
+  add column if not exists can_edit_offer boolean not null default false;
+
+update public.project_members m
+set can_edit_offer = true,
+    can_write = false
+from public.projects p,
+     jsonb_each(coalesce(p.payload -> 'memberPermissions', '{}'::jsonb)) as perm(key, value)
+where p.id = m.project_id
+  and lower(perm.key) = lower(m.email)
+  and perm.value ->> 'role' = 'ditta';
+
+update public.project_members m
+set can_edit_offer = true,
+    can_write = false
+from public.projects p,
+     jsonb_each(coalesce(p.payload -> 'collaborators', '{}'::jsonb)) as coll(key, value)
+where p.id = m.project_id
+  and lower(coll.key) = lower(m.email)
+  and (coll.value #>> '{}') = 'ditta'
+  and not exists (
+    select 1
+    from jsonb_object_keys(coalesce(p.payload -> 'memberPermissions', '{}'::jsonb)) as k(key)
+    where lower(k.key) = lower(m.email)
+  );
+
+-- ------------------------------------------------------------
 -- 1. Helper: membro che può creare versioni (qualsiasi permesso di modifica)
 -- ------------------------------------------------------------
 create or replace function public.is_project_contributor(p_project_id text)
@@ -708,13 +737,60 @@ as $$
         m.can_write
         or m.can_edit_sal
         or m.can_edit_price_books
-        or (m.role = 'editor' and not m.can_edit_sal and not m.can_edit_price_books)
+        or m.can_edit_offer
+        or (m.role = 'editor' and not m.can_edit_sal and not m.can_edit_price_books and not m.can_edit_offer)
       )
   );
 $$;
 
 revoke all on function public.is_project_contributor(text) from public, anon;
 grant execute on function public.is_project_contributor(text) to authenticated;
+
+-- Un ditta non è uno scrittore completo: aggiorna solo l'offerta via RPC.
+create or replace function public.is_project_writer(p_project_id text)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.project_members m
+    where m.project_id = p_project_id
+      and lower(m.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      and (
+        m.can_write
+        or (m.role = 'editor' and not m.can_edit_sal and not m.can_edit_price_books and not m.can_edit_offer)
+      )
+  );
+$$;
+
+revoke all on function public.is_project_writer(text) from public, anon;
+grant execute on function public.is_project_writer(text) to authenticated;
+
+create or replace function public.is_project_price_book_editor(p_project_id text)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.project_members m
+    where m.project_id = p_project_id
+      and lower(m.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+      and (
+        m.can_write
+        or m.can_edit_price_books
+        or (m.role = 'editor' and not m.can_edit_sal and not m.can_edit_price_books and not m.can_edit_offer)
+      )
+  );
+$$;
+
+revoke all on function public.is_project_price_book_editor(text) from public, anon;
+grant execute on function public.is_project_price_book_editor(text) to authenticated;
 
 -- ------------------------------------------------------------
 -- 2. RPC SAL/prezzari con concorrenza ottimistica
@@ -824,6 +900,216 @@ revoke all on function public.save_project_parts_v2(text, jsonb, jsonb, timestam
 grant execute on function public.save_project_parts_v2(text, jsonb, jsonb, timestamptz) to authenticated;
 
 -- ------------------------------------------------------------
+-- 2b. Offerta ditta: fonde solo campi offerta e voci aggiunte
+-- ------------------------------------------------------------
+create or replace function public.merge_offer_item(server_item jsonb, submitted_item jsonb)
+returns jsonb
+language plpgsql
+immutable
+as $$
+declare
+  result jsonb := server_item;
+begin
+  if server_item is null then
+    return submitted_item;
+  end if;
+
+  if coalesce((server_item ->> 'isContractorItem')::boolean, false) then
+    result := jsonb_set(submitted_item, '{isContractorItem}', 'true'::jsonb);
+    result := jsonb_set(result, '{id}', server_item -> 'id');
+    return result;
+  end if;
+
+  if submitted_item ? 'offerPrice' then
+    result := jsonb_set(result, '{offerPrice}', submitted_item -> 'offerPrice');
+  end if;
+  if submitted_item ? 'offerMaterialPrice' then
+    result := jsonb_set(result, '{offerMaterialPrice}', submitted_item -> 'offerMaterialPrice');
+  end if;
+  if submitted_item ? 'offerLaborPrice' then
+    result := jsonb_set(result, '{offerLaborPrice}', submitted_item -> 'offerLaborPrice');
+  end if;
+  if submitted_item ? 'offerDays' then
+    result := jsonb_set(result, '{offerDays}', submitted_item -> 'offerDays');
+  end if;
+  if submitted_item ? 'offerNotes' then
+    result := jsonb_set(result, '{offerNotes}', submitted_item -> 'offerNotes');
+  end if;
+
+  return result;
+end;
+$$;
+
+create or replace function public.merge_offer_node(server_node jsonb, submitted_node jsonb)
+returns jsonb
+language plpgsql
+immutable
+as $$
+declare
+  result jsonb := server_node;
+  server_items jsonb := coalesce(server_node -> 'items', '[]'::jsonb);
+  submitted_items jsonb := coalesce(submitted_node -> 'items', '[]'::jsonb);
+  merged_items jsonb := '[]'::jsonb;
+  item jsonb;
+  sub jsonb;
+  children jsonb := '[]'::jsonb;
+  child jsonb;
+  sub_child jsonb;
+begin
+  if server_node is null then
+    return submitted_node;
+  end if;
+  if submitted_node is null then
+    return server_node;
+  end if;
+
+  for item in select value from jsonb_array_elements(server_items) loop
+    sub := null;
+    select value into sub
+    from jsonb_array_elements(submitted_items)
+    where value ->> 'id' = item ->> 'id'
+    limit 1;
+
+    if sub is null and coalesce((item ->> 'isContractorItem')::boolean, false) then
+      continue;
+    end if;
+
+    merged_items := merged_items || jsonb_build_array(public.merge_offer_item(item, sub));
+  end loop;
+
+  for sub in select value from jsonb_array_elements(submitted_items) loop
+    if not exists (
+      select 1 from jsonb_array_elements(server_items) as existing
+      where existing ->> 'id' = sub ->> 'id'
+    ) and coalesce((sub ->> 'isContractorItem')::boolean, false) then
+      if coalesce(sub ->> 'id', '') = '' or coalesce(sub ->> 'description', '') = '' then
+        raise exception 'Voce offerta non valida';
+      end if;
+      if exists (
+        select 1 from jsonb_array_elements(merged_items) as added
+        where added ->> 'id' = sub ->> 'id'
+      ) then
+        continue;
+      end if;
+      merged_items := merged_items || jsonb_build_array(jsonb_set(sub, '{isContractorItem}', 'true'::jsonb));
+    end if;
+  end loop;
+
+  result := jsonb_set(result, '{items}', merged_items);
+
+  for child in select value from jsonb_array_elements(coalesce(server_node -> 'children', '[]'::jsonb)) loop
+    sub_child := null;
+    select value into sub_child
+    from jsonb_array_elements(coalesce(submitted_node -> 'children', '[]'::jsonb))
+    where value ->> 'id' = child ->> 'id'
+    limit 1;
+
+    children := children || jsonb_build_array(public.merge_offer_node(child, sub_child));
+  end loop;
+
+  result := jsonb_set(result, '{children}', children);
+  return result;
+end;
+$$;
+
+create or replace function public.save_project_offer(
+  p_project_id text,
+  p_offer_tree jsonb,
+  p_contractor_details jsonb default null,
+  p_expected_updated_at timestamptz default null
+)
+returns timestamptz
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_uid uuid := auth.uid();
+  v_owner uuid;
+  v_payload jsonb;
+  v_can_write boolean := false;
+  v_can_offer boolean := false;
+  v_legacy_editor boolean := false;
+  v_tree jsonb;
+  v_updated timestamptz;
+  v_now bigint := (extract(epoch from clock_timestamp()) * 1000)::bigint;
+begin
+  if v_uid is null then
+    raise exception 'Not authenticated';
+  end if;
+
+  if p_offer_tree is null or jsonb_typeof(p_offer_tree) <> 'object' then
+    raise exception 'Albero offerta non valido';
+  end if;
+
+  if p_contractor_details is not null and jsonb_typeof(p_contractor_details) <> 'object' then
+    raise exception 'Dati ditta non validi';
+  end if;
+
+  select owner_id, coalesce(payload, '{}'::jsonb)
+    into v_owner, v_payload
+  from public.projects
+  where id = p_project_id;
+
+  if v_owner is null then
+    raise exception 'Progetto non trovato';
+  end if;
+
+  if v_owner <> v_uid then
+    select
+      coalesce(m.can_write, false),
+      coalesce(m.can_edit_offer, false),
+      (m.role = 'editor' and not m.can_edit_sal and not m.can_edit_price_books and not m.can_edit_offer)
+    into v_can_write, v_can_offer, v_legacy_editor
+    from public.project_members m
+    where m.project_id = p_project_id
+      and lower(m.email) = lower(coalesce(auth.jwt() ->> 'email', ''))
+    limit 1;
+
+    if v_legacy_editor then
+      v_can_write := true;
+    end if;
+
+    if not v_can_write and not v_can_offer then
+      raise exception 'Permessi insufficienti per l''offerta';
+    end if;
+  end if;
+
+  v_tree := public.merge_offer_node(
+    coalesce(v_payload -> 'rootWBS', '{}'::jsonb),
+    p_offer_tree
+  );
+
+  v_payload := v_payload
+    || jsonb_build_object(
+      'rootWBS', v_tree,
+      'contractorDetails', p_contractor_details,
+      'lastModified', v_now
+    );
+
+  update public.projects
+     set payload = v_payload,
+         last_modified = v_now
+   where id = p_project_id
+     and (p_expected_updated_at is null or updated_at = p_expected_updated_at)
+   returning updated_at into v_updated;
+
+  if v_updated is null then
+    raise exception 'Conflitto di sincronizzazione' using errcode = '40001';
+  end if;
+
+  return v_updated;
+end;
+$$;
+
+revoke all on function public.merge_offer_item(jsonb, jsonb) from public, anon;
+revoke all on function public.merge_offer_node(jsonb, jsonb) from public, anon;
+revoke all on function public.save_project_offer(text, jsonb, jsonb, timestamptz) from public, anon;
+grant execute on function public.merge_offer_item(jsonb, jsonb) to authenticated;
+grant execute on function public.merge_offer_node(jsonb, jsonb) to authenticated;
+grant execute on function public.save_project_offer(text, jsonb, jsonb, timestamptz) to authenticated;
+
+-- ------------------------------------------------------------
 -- 3. Cronologia versioni condivisa
 -- ------------------------------------------------------------
 create table if not exists public.project_versions (
@@ -918,7 +1204,7 @@ create table if not exists public.schema_meta (
 );
 
 insert into public.schema_meta (id, version)
-values ('stimia', 4)
+values ('stimia', 5)
 on conflict (id) do update
   set version = greatest(public.schema_meta.version, excluded.version),
       applied_at = now();

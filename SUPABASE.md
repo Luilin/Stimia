@@ -65,6 +65,21 @@ Editor**: sono controlli read-only che restituiscono `PASS`/`FAIL` per colonne
 granulari, funzioni, privilegi `anon`, RLS, policy Storage, versioni e
 concorrenza.
 
+## Test E2E
+
+`npm run test:e2e` crea utenti e un progetto temporanei, verifica RPC ditta,
+concorrenza, RLS e Storage, poi pulisce tutto. Richiede:
+
+```bash
+SUPABASE_URL=...
+SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+Usalo su un progetto di **staging**. Sul progetto di produzione lo script si
+ferma salvo `E2E_ALLOW_PRODUCTION=1`; la service role non va mai esposta nel
+frontend.
+
 ## Configurazione (una volta sola)
 
 1. Crea un progetto gratuito su <https://supabase.com>.

@@ -12,7 +12,8 @@
     "preview:local": "cross-env VITE_LOCAL_MODE=true vite preview",
     "lint": "tsc --noEmit",
     "test": "vitest run",
-    "test:sql": "node scripts/test-sql-permissions.mjs"
+    "test:sql": "node scripts/test-sql-permissions.mjs",
+    "test:e2e": "node scripts/test-supabase-e2e.mjs"
   },
   "engines": {
     "node": ">=22.13.0"

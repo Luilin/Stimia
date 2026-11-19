@@ -18,6 +18,7 @@ import {
   classifySyncError,
   isSyncConflictError,
   membersSignature,
+  normalizeOfferTree,
   projectMemberPermissions,
   projectSaveMode,
 } from './syncUtils';
@@ -173,10 +174,10 @@ export async function fetchRemoteProjects(): Promise<Project[]> {
 const signatureKey = (projectId: string) => `${MEMBER_SIGNATURE_PREFIX}${projectId}`;
 
 /**
- * null = non ancora verificato in questa sessione; false = il database non ha
- * le colonne granulari (migrazione non applicata).
+ * Ultima firma dei membri scritta con successo in questa sessione. Serve a non
+ * ripetere delete/insert quando lo schema del database forza un fallback.
  */
-let memberColumnsAvailable: boolean | null = null;
+let lastMembersSignature: string | null = null;
 
 function readMembersSignature(projectId: string): string | null {
   try {
@@ -291,6 +292,7 @@ export async function upsertRemoteProject(
       can_write: db.canWrite,
       can_edit_sal: db.canEditSAL,
       can_edit_price_books: db.canEditPriceBooks,
+      can_edit_offer: db.canEditOffer,
     };
   });
 
@@ -300,16 +302,17 @@ export async function upsertRemoteProject(
     canWrite: member.can_write,
     canEditSAL: member.can_edit_sal,
     canEditPriceBooks: member.can_edit_price_books,
+    canEditOffer: member.can_edit_offer,
   })));
 
   // L'autosave non deve cancellare e reinserire i membri a ogni modifica:
   // lo fa solo quando condivisione, ruoli o permessi cambiano davvero.
   const granularKey = `g:${signature}`;
-  const legacyKey = `l:${signature}`;
   const storedSignature = readMembersSignature(project.id);
   if (storedSignature === granularKey) return;
-  // Sessione già in modalità legacy: evita delete/insert a ogni autosave.
-  if (storedSignature === legacyKey && memberColumnsAvailable === false) return;
+  // Evita delete/insert ripetuti nella stessa sessione quando il database non
+  // accetta lo schema completo (fallback legacy).
+  if (lastMembersSignature === signature) return;
 
   const { error: deleteError } = await client
     .from('project_members')
@@ -323,31 +326,56 @@ export async function upsertRemoteProject(
       .insert(members.map(member => ({ project_id: project.id, ...member })));
 
     if (insertError) {
-      // Compatibilità con un database non ancora migrato: inserisce i soli
-      // campi storici e memorizza una firma "legacy" per evitare di ripetere
-      // delete/insert a ogni autosave. Al prossimo avvio si riproverà.
-      const missingColumns = /can_write|can_edit_sal|can_edit_price_books/i.test(insertError.message)
+      // Compatibilità con un database non ancora migrato: memorizza una firma
+      // "legacy" per evitare di ripetere delete/insert a ogni autosave.
+      // Al prossimo avvio si riproverà con lo schema completo.
+      const missingColumns = /can_write|can_edit_sal|can_edit_price_books|can_edit_offer/i.test(insertError.message)
         && /does not exist|schema cache|column/i.test(insertError.message);
 
       if (!missingColumns) throw new Error(insertError.message);
 
-      const { error: legacyError } = await client
+      // Caso intermedio: manca solo `can_edit_offer`. Conserva gli altri
+      // permessi granulari, così un utente SAL/prezzari non diventa scrittore
+      // completo per effetto del fallback.
+      const { error: withoutOfferError } = await client
         .from('project_members')
         .insert(members.map(member => ({
           project_id: project.id,
           email: member.email,
           role: member.role,
+          can_write: member.can_write,
+          can_edit_sal: member.can_edit_sal,
+          can_edit_price_books: member.can_edit_price_books,
+        })));
+
+      if (!withoutOfferError) {
+        lastMembersSignature = signature;
+        writeMembersSignature(project.id, `l:${signature}`);
+        return;
+      }
+
+      const stillMissingGranularColumns = /can_write|can_edit_sal|can_edit_price_books/i.test(withoutOfferError.message)
+        && /does not exist|schema cache|column/i.test(withoutOfferError.message);
+      if (!stillMissingGranularColumns) throw new Error(withoutOfferError.message);
+
+      // Schema solo ruoli: senza colonne granulari l'unico ruolo sicuro per
+      // ditta e permessi parziali è viewer. Solo `can_write` resta editor.
+      const { error: legacyError } = await client
+        .from('project_members')
+        .insert(members.map(member => ({
+          project_id: project.id,
+          email: member.email,
+          role: member.can_write ? 'editor' : 'viewer',
         })));
       if (legacyError) throw new Error(legacyError.message);
 
-      memberColumnsAvailable = false;
-      writeMembersSignature(project.id, legacyKey);
+      lastMembersSignature = signature;
+      writeMembersSignature(project.id, `l:${signature}`);
       return;
     }
-
-    memberColumnsAvailable = true;
   }
 
+  lastMembersSignature = signature;
   writeMembersSignature(project.id, granularKey);
 }
 
@@ -361,8 +389,14 @@ export async function deleteRemoteProject(projectId: string): Promise<void> {
   await clearSyncConflict(projectId);
 }
 
+const isMissingFunctionError = (
+  error: { code?: string; message?: string } | null,
+  functionName: string,
+): boolean =>
+  Boolean(error && (error.code === 'PGRST202' || new RegExp(functionName, 'i').test(error.message || '')));
+
 const isMissingRpcError = (error: { code?: string; message?: string } | null): boolean =>
-  Boolean(error && (error.code === 'PGRST202' || /save_project_parts/i.test(error.message || '')));
+  isMissingFunctionError(error, 'save_project_parts');
 
 /**
  * Aggiorna solo le parti consentite (SAL e/o prezzari) tramite RPC.
@@ -425,7 +459,7 @@ async function saveRestrictedParts(
 
       // Database non ancora migrato: il vecchio ruolo "editor" permette ancora
       // l'aggiornamento completo. Si continua a funzionare fino alla migrazione.
-      await upsertRemoteProject(project);
+      await upsertRemoteProject(project, expectedUpdatedAt);
       return;
     }
 
@@ -468,7 +502,47 @@ export async function saveRemoteProject(
     return;
   }
 
+  if (mode === 'offer') {
+    await saveOfferProject(project, expectedUpdatedAt);
+    return;
+  }
+
   throw new Error('Permessi insufficienti per salvare il progetto.');
+}
+
+async function saveOfferProject(
+  project: Project,
+  expectedUpdatedAt: string | null,
+): Promise<void> {
+  const client = requireClient();
+
+  const { data, error } = await client.rpc('save_project_offer', {
+    p_project_id: project.id,
+    p_offer_tree: normalizeOfferTree(project.rootWBS),
+    p_contractor_details: project.contractorDetails ?? null,
+    p_expected_updated_at: expectedUpdatedAt,
+  });
+
+  if (error) {
+    if (error.code === '40001' || /conflitto di sincronizzazione/i.test(error.message || '')) {
+      throw new SyncConflictError(project.id);
+    }
+
+    if (isMissingFunctionError(error, 'save_project_offer')) {
+      // Senza la RPC dedicata non è possibile salvare la sola offerta: un
+      // fallback a scrittura completa concederebbe alla ditta l'intero computo.
+      throw new Error('Salvataggio offerta in aggiornamento. Riprova dopo l’aggiornamento del database.');
+    }
+
+    throw new Error(error.message);
+  }
+
+  const updatedAt = typeof data === 'string'
+    ? data
+    : (data as { updated_at?: string } | null)?.updated_at;
+  if (updatedAt) {
+    await idbPut<SyncMeta>(STORE_SYNC_META, { projectId: project.id, updatedAt });
+  }
 }
 
 async function handleSyncConflict(project: Project): Promise<void> {

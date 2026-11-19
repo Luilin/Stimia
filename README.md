@@ -140,6 +140,7 @@ location.reload();
 | `npm run lint` | Controllo TypeScript (`tsc --noEmit`) |
 | `npm test` | Test automatici (Vitest) |
 | `npm run test:sql` | Test di funzioni, RPC e policy su Postgres WASM (PGlite) |
+| `npm run test:e2e` | Test E2E autenticati (richiede un progetto Supabase di staging e la service role) |
 
 ---
 
@@ -185,9 +186,9 @@ location.reload();
 - Le policy distinguono proprietario, editor e viewer. Con le migrazioni
   [`20261118_granular_permissions.sql`](supabase/migrations/20261118_granular_permissions.sql)
   e [`20261119_data_safety.sql`](supabase/migrations/20261119_data_safety.sql)
-  i permessi SAL/prezzari, la concorrenza e la cronologia versioni sono
-  applicati dal database; la ditta resta un editor applicativo perché compila
-  l'offerta dentro la struttura del computo.
+  i permessi SAL/prezzari, la concorrenza, la cronologia versioni e l'offerta
+  ditta sono applicati dal database; la ditta aggiorna solo i campi offerta e
+  le proprie voci tramite una RPC dedicata, non il computo base.
 - I documenti generati (HTML di stampa, XML FatturaPA, ICS, EML, PDF) passano
   da escape o sanitizzazione dei valori inseriti dall'utente.
 - L'eliminazione dell'account cancella i dati cloud e la copia locale nel

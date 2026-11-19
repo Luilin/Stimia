@@ -1,7 +1,7 @@
 import { supabase } from './supabase';
 
 /** Versione minima dello schema attesa dal client. */
-export const EXPECTED_SCHEMA_VERSION = 4;
+export const EXPECTED_SCHEMA_VERSION = 5;
 
 /**
  * Legge la versione dello schema dal database.

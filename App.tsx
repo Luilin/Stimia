@@ -1065,13 +1065,16 @@ export default function App() {
     const isOwner = selectedProject.userId === currentUser?.uid || (selectedProject.createdBy || '').toLowerCase() === emailLower;
     const userRoleInCollab = selectedProject.collaborators?.[emailLower] ||
       Object.entries(selectedProject.collaborators || {}).find(([k]) => k.toLowerCase() === emailLower)?.[1];
-    const isDittaRole = userRoleInCollab === 'ditta';
+    const memberPermission = findMemberPermission(selectedProject, emailLower);
+    const isDittaRole = memberPermission?.role === 'ditta' || userRoleInCollab === 'ditta';
     const perms = permissionsForProject(selectedProject, currentUser || { uid: '', email: '' });
     const isReadOnly = !perms.canWrite && !perms.canEditSAL && !perms.canEditPriceBooks && !isDittaRole;
 
     const activeUserRole: 'owner' | 'editor' | 'viewer' | 'ditta' = isOwner
       ? 'owner'
-      : (userRoleInCollab || 'viewer');
+      : isDittaRole
+        ? 'ditta'
+        : (userRoleInCollab || 'viewer');
 
     return (
       <React.Suspense

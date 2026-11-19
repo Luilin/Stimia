@@ -5,7 +5,7 @@
  * testate senza browser.
  */
 
-import type { MemberPermission, Project } from '../types';
+import type { CostItem, MemberPermission, Project, WBSNode } from '../types';
 
 export interface MemberEntry {
   email: string;
@@ -13,6 +13,7 @@ export interface MemberEntry {
   canWrite?: boolean;
   canEditSAL?: boolean;
   canEditPriceBooks?: boolean;
+  canEditOffer?: boolean;
 }
 
 export interface DbMemberPermissions {
@@ -20,6 +21,7 @@ export interface DbMemberPermissions {
   canWrite: boolean;
   canEditSAL: boolean;
   canEditPriceBooks: boolean;
+  canEditOffer: boolean;
 }
 
 /** Chiave localStorage con l'impronta dei membri già sincronizzati. */
@@ -37,6 +39,7 @@ export function membersSignature(members: MemberEntry[]): string {
       member.canWrite ? '1' : '0',
       member.canEditSAL ? '1' : '0',
       member.canEditPriceBooks ? '1' : '0',
+      member.canEditOffer ? '1' : '0',
     ].join(':'))
     .sort()
     .join('|');
@@ -61,7 +64,7 @@ export function memberDbPermissions(
 ): DbMemberPermissions {
   if (permission) {
     if (permission.role === 'ditta') {
-      return { role: 'editor', canWrite: true, canEditSAL: false, canEditPriceBooks: false };
+      return { role: 'editor', canWrite: false, canEditSAL: false, canEditPriceBooks: false, canEditOffer: true };
     }
 
     const canEditSAL = Boolean(permission.canEditSAL);
@@ -72,15 +75,21 @@ export function memberDbPermissions(
       canWrite,
       canEditSAL,
       canEditPriceBooks,
+      canEditOffer: false,
     };
   }
 
-  const isLegacyEditor = legacyRole === 'editor' || legacyRole === 'ditta';
+  if (legacyRole === 'ditta') {
+    return { role: 'editor', canWrite: false, canEditSAL: false, canEditPriceBooks: false, canEditOffer: true };
+  }
+
+  const isLegacyEditor = legacyRole === 'editor';
   return {
     role: isLegacyEditor ? 'editor' : 'viewer',
     canWrite: isLegacyEditor,
     canEditSAL: isLegacyEditor,
     canEditPriceBooks: isLegacyEditor,
+    canEditOffer: false,
   };
 }
 
@@ -106,7 +115,7 @@ export function projectMemberPermissions(project: Project, email: string): DbMem
   return memberDbPermissions(permission, collaboratorRole);
 }
 
-export type ProjectSaveMode = 'full' | 'parts' | 'viewer';
+export type ProjectSaveMode = 'full' | 'parts' | 'offer' | 'viewer';
 
 /**
  * Decide come salvare il progetto: completo (proprietario/editor), solo parti
@@ -130,8 +139,31 @@ export function projectSaveMode(project: Project, userId: string, email: string)
 
   const permissions = projectMemberPermissions(project, normalized);
   if (permissions.canWrite) return 'full';
+  if (permissions.canEditOffer) return 'offer';
   if (permissions.canEditSAL || permissions.canEditPriceBooks) return 'parts';
   return 'viewer';
+}
+
+/**
+ * Rende espliciti i campi offerta prima della RPC ditta: `null` significa
+ * "campo cancellato". Senza questo, JSON omette i campi vuoti e il server
+ * manterrebbe il vecchio valore.
+ */
+export function normalizeOfferTree(node: WBSNode): WBSNode {
+  const normalizeItem = (item: CostItem) => ({
+    ...item,
+    offerPrice: item.offerPrice ?? null,
+    offerMaterialPrice: item.offerMaterialPrice ?? null,
+    offerLaborPrice: item.offerLaborPrice ?? null,
+    offerDays: item.offerDays ?? null,
+    offerNotes: item.offerNotes ?? null,
+  });
+
+  return {
+    ...node,
+    items: node.items.map(normalizeItem),
+    children: node.children.map(normalizeOfferTree),
+  } as unknown as WBSNode;
 }
 
 export type SyncErrorKind = 'permanent' | 'offline' | 'retry';

@@ -40,6 +40,71 @@ with checks(controllo, esito) as (
 
   union all
   select
+    'Colonna can_edit_offer',
+    (
+      select count(*) = 1
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'project_members'
+        and column_name = 'can_edit_offer'
+    )
+
+  union all
+  select
+    'Ditta senza scrittura completa',
+    not exists (
+      select 1
+      from public.project_members m
+      join public.projects p on p.id = m.project_id
+      where m.can_write
+        and (
+          exists (
+            select 1
+            from jsonb_each(coalesce(p.payload -> 'memberPermissions', '{}'::jsonb)) as perm(key, value)
+            where lower(perm.key) = lower(m.email)
+              and perm.value ->> 'role' = 'ditta'
+          )
+          or (
+            exists (
+              select 1
+              from jsonb_each(coalesce(p.payload -> 'collaborators', '{}'::jsonb)) as coll(key, value)
+              where lower(coll.key) = lower(m.email)
+                and (coll.value #>> '{}') = 'ditta'
+            )
+            and not exists (
+              select 1
+              from jsonb_object_keys(coalesce(p.payload -> 'memberPermissions', '{}'::jsonb)) as k(key)
+              where lower(k.key) = lower(m.email)
+            )
+          )
+        )
+    )
+
+  union all
+  select
+    'Funzione save_project_offer',
+    exists (
+      select 1 from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = 'save_project_offer'
+    )
+
+  union all
+  select
+    'Funzione merge_offer_node',
+    exists (
+      select 1 from pg_proc p
+      join pg_namespace n on n.oid = p.pronamespace
+      where n.nspname = 'public' and p.proname = 'merge_offer_node'
+    )
+
+  union all
+  select
+    'anon non può eseguire save_project_offer',
+    not has_function_privilege('anon', 'public.save_project_offer(text, jsonb, jsonb, timestamptz)', 'execute')
+
+  union all
+  select
     'Tabella project_versions presente',
     to_regclass('public.project_versions') is not null
 
@@ -82,8 +147,8 @@ with checks(controllo, esito) as (
 
   union all
   select
-    'Versione schema >= 4',
-    public.stimia_schema_version() >= 4
+    'Versione schema >= 5',
+    public.stimia_schema_version() >= 5
 )
 select controllo, case when esito then 'PASS' else 'FAIL' end as risultato
 from checks

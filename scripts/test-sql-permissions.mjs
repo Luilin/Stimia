@@ -206,12 +206,12 @@ try {
       '{"name":"P1","sals":[{"id":"s1"}],"priceBooks":[{"id":"b1"}],"rootWBS":{"id":"root","items":[],"children":[]},"lastModified":100}'::jsonb
     );
 
-    insert into public.project_members (project_id, email, role, can_write, can_edit_sal, can_edit_price_books) values
-      ('p1', 'writer@test.it', 'editor', true,  false, false),
-      ('p1', 'sal@test.it',    'editor', false, true,  false),
-      ('p1', 'pb@test.it',     'editor', false, false, true),
-      ('p1', 'viewer@test.it', 'viewer', false, false, false),
-      ('p1', 'ditta@test.it',  'editor', true,  false, false);
+    insert into public.project_members (project_id, email, role, can_write, can_edit_sal, can_edit_price_books, can_edit_offer) values
+      ('p1', 'writer@test.it', 'editor', true,  false, false, false),
+      ('p1', 'sal@test.it',    'editor', false, true,  false, false),
+      ('p1', 'pb@test.it',     'editor', false, false, true,  false),
+      ('p1', 'viewer@test.it', 'viewer', false, false, false, false),
+      ('p1', 'ditta@test.it',  'editor', false, false, false, true);
   `);
 
   // --- Autorizzazione ------------------------------------------------
@@ -220,7 +220,7 @@ try {
     ['sal@test.it', false, false],
     ['pb@test.it', false, true],
     ['viewer@test.it', false, false],
-    ['ditta@test.it', true, true],
+    ['ditta@test.it', false, false],
   ]) {
     await asMember(email);
     const writer = await db.query("select public.is_project_writer('p1') as v");
@@ -360,6 +360,123 @@ try {
     /Permessi insufficienti per i prezzari/i,
   );
 
+  // --- Offerta ditta: solo campi offerta e voci aggiunte -------------
+  await superuser();
+  await db.exec(`
+    update public.projects
+    set payload = jsonb_set(
+      payload,
+      '{rootWBS}',
+      '{"id":"root","items":[],"children":[{"id":"cat","code":"1","name":"Categoria","level":1,"children":[],"items":[
+        {"id":"item1","code":"1.1","description":"Voce base","uom":"m","qty":2,"price":100,"amount":200,
+         "activeDimensions":{"length":false,"area":false,"height":false,"weight":false}}
+      ]}]}'::jsonb
+    )
+    where id = 'p1';
+  `);
+
+  const offerTokenResult = await db.query("select updated_at::text as token from public.projects where id = 'p1'");
+  const offerToken = offerTokenResult.rows[0].token;
+  const offerTree = {
+    id: 'root',
+    code: '',
+    name: 'Root',
+    level: 0,
+    items: [],
+    children: [
+      {
+        id: 'cat',
+        code: '1',
+        name: 'Categoria',
+        level: 1,
+        children: [],
+        items: [
+          {
+            id: 'item1',
+            code: 'HACK',
+            description: 'MODIFICATA',
+            uom: 'kg',
+            qty: 999,
+            price: 1,
+            amount: 999,
+            offerPrice: 777,
+            offerDays: 12,
+            offerNotes: 'offerta',
+            activeDimensions: { length: false, area: false, height: false, weight: false },
+          },
+          {
+            id: 'ditta-new',
+            code: 'D.1',
+            description: 'Variante ditta',
+            uom: 'cad',
+            qty: 1,
+            price: 999,
+            amount: 999,
+            offerPrice: 999,
+            isContractorItem: true,
+            activeDimensions: { length: false, area: false, height: false, weight: false },
+          },
+        ],
+      },
+    ],
+  };
+  const offerTreeSql = JSON.stringify(offerTree).replace(/'/g, "''");
+
+  await asMember('ditta@test.it');
+  const offerSave = await db.query(
+    `select public.save_project_offer('p1', '${offerTreeSql}'::jsonb, '{"companyName":"Ditta Test","vatNumber":"IT123"}'::jsonb, '${offerToken}'::timestamptz) as updated_at`,
+  );
+  ok('Offerta ditta: RPC eseguita', Boolean(offerSave.rows[0].updated_at), JSON.stringify(offerSave.rows[0]));
+
+  await superuser();
+  const offerPayload = await payload();
+  const baseItem = offerPayload.rootWBS.children[0].items.find((entry) => entry.id === 'item1');
+  const addedItem = offerPayload.rootWBS.children[0].items.find((entry) => entry.id === 'ditta-new');
+  ok('Offerta ditta: campi base non modificati', baseItem.description === 'Voce base' && baseItem.uom === 'm' && baseItem.qty === 2 && baseItem.price === 100, JSON.stringify(baseItem));
+  ok('Offerta ditta: campi offerta aggiornati', baseItem.offerPrice === 777 && baseItem.offerDays === 12 && baseItem.offerNotes === 'offerta', JSON.stringify(baseItem));
+  ok('Offerta ditta: nuova voce aggiunta', Boolean(addedItem) && addedItem.isContractorItem === true, JSON.stringify(addedItem));
+  ok('Offerta ditta: dati ditta aggiornati', offerPayload.contractorDetails?.companyName === 'Ditta Test', JSON.stringify(offerPayload.contractorDetails));
+  ok('Offerta ditta: SAL e prezzari invariati', JSON.stringify(offerPayload.sals) === JSON.stringify([{ id: 's8' }]) && JSON.stringify(offerPayload.priceBooks) === JSON.stringify([{ id: 'b8' }]), JSON.stringify({ sals: offerPayload.sals, priceBooks: offerPayload.priceBooks }));
+
+  await asMember('ditta@test.it');
+  await expectError(
+    'Offerta ditta: token vecchio → conflitto',
+    `select public.save_project_offer('p1', '${offerTreeSql}'::jsonb, null, '${offerToken}'::timestamptz)`,
+    /Conflitto di sincronizzazione/i,
+  );
+
+  const removalTree = {
+    ...offerTree,
+    children: [
+      {
+        ...offerTree.children[0],
+        items: [offerTree.children[0].items[0]],
+      },
+    ],
+  };
+  const removalTreeSql = JSON.stringify(removalTree).replace(/'/g, "''");
+  await superuser();
+  const removalTokenResult = await db.query("select updated_at::text as token from public.projects where id = 'p1'");
+  const removalToken = removalTokenResult.rows[0].token;
+
+  await asMember('ditta@test.it');
+  await db.query(`select public.save_project_offer('p1', '${removalTreeSql}'::jsonb, null, '${removalToken}'::timestamptz)`);
+  await superuser();
+  const afterRemoval = await payload();
+  ok(
+    'Offerta ditta: rimuove solo la propria voce',
+    !afterRemoval.rootWBS.children[0].items.some((entry) => entry.id === 'ditta-new')
+      && afterRemoval.rootWBS.children[0].items.some((entry) => entry.id === 'item1'),
+    JSON.stringify(afterRemoval.rootWBS.children[0].items.map((entry) => entry.id)),
+  );
+
+  await asMember('viewer@test.it');
+  await expectError(
+    'Offerta ditta: viewer bloccato',
+    `select public.save_project_offer('p1', '${removalTreeSql}'::jsonb, null, null)`,
+    /Permessi insufficienti per l'offerta/i,
+  );
+
   // --- Cronologia versioni condivisa ---------------------------------
   await asMember('writer@test.it');
   await expectSuccess(
@@ -416,7 +533,7 @@ try {
   // --- Versione schema ----------------------------------------------
   await asMember('writer@test.it');
   const schemaVersion = await db.query("select public.stimia_schema_version() as v");
-  ok('Versione schema leggibile', schemaVersion.rows[0].v === 4, String(schemaVersion.rows[0].v));
+  ok('Versione schema leggibile', schemaVersion.rows[0].v === 5, String(schemaVersion.rows[0].v));
 
   await asAnon();
   await expectError(
@@ -493,6 +610,10 @@ try {
   await asMember('viewer@test.it');
   await expectError('Allegati: viewer non può inserire', "insert into public.project_attachments(id, project_id) values ('att-viewer', 'p1')", /row-level security/i);
   await expectError('Storage: viewer non può caricare', "insert into storage.objects(name, bucket_id) values ('p1/attachments/viewer', 'stimia-files')", /row-level security/i);
+
+  await asMember('ditta@test.it');
+  await expectError('Allegati: ditta non può inserire', "insert into public.project_attachments(id, project_id) values ('att-ditta', 'p1')", /row-level security/i);
+  await expectError('Storage: ditta non può caricare allegati', "insert into storage.objects(name, bucket_id) values ('p1/attachments/ditta', 'stimia-files')", /row-level security/i);
 
   await asAnon();
   await expectError('Storage: anon non può caricare', "insert into storage.objects(name, bucket_id) values ('p1/attachments/anon', 'stimia-files')", /permission denied/i);
