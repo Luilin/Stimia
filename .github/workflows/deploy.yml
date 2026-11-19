@@ -17,6 +17,10 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      # L'if di uno step non può leggere direttamente `secrets`: lo esponiamo
+      # come variabile d'ambiente a livello di job.
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
     steps:
       - uses: actions/checkout@v4
 
@@ -37,7 +41,7 @@ jobs:
         run: npm run test:sql
 
       - name: Test E2E Supabase (staging)
-        if: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY != '' }}
+        if: env.SUPABASE_SERVICE_ROLE_KEY != ''
         run: npm run test:e2e
         env:
           SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
